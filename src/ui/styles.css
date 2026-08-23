@@ -1,0 +1,811 @@
+/*
+ * Styl aplikacji.
+ *
+ * Zasady, które wynikają z tego, gdzie ta aplikacja jest używana:
+ *  - pola i przyciski mają co najmniej 48 px wysokości — obsługa w rękawicach,
+ *  - kontrast jest wysoki, bo ekran telefonu na dachu bywa w pełnym słońcu,
+ *  - liczba wyniku jest zawsze większa od swojego opisu,
+ *  - układ jest jednokolumnowy na telefonie i dwukolumnowy na monitorze.
+ */
+
+:root {
+  --tlo: #f6f5f3;
+  --tlo-karta: #ffffff;
+  --tlo-wglebienie: #efedea;
+  --tekst: #1c1917;
+  --tekst-slaby: #6b6560;
+  --linia: #ddd8d2;
+  --akcent: #b45309;
+  --akcent-jasny: #fef3e7;
+  --akcent-tekst: #7c3a06;
+  --ostrzezenie: #b91c1c;
+  --ostrzezenie-tlo: #fef2f2;
+  --uwaga: #0369a1;
+  --uwaga-tlo: #f0f9ff;
+  --ok: #15803d;
+  --promien: 12px;
+  --cien: 0 1px 2px rgba(28, 25, 23, 0.08), 0 4px 12px rgba(28, 25, 23, 0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --tlo: #1c1917;
+    --tlo-karta: #292524;
+    --tlo-wglebienie: #211e1c;
+    --tekst: #f5f5f4;
+    --tekst-slaby: #a8a29e;
+    --linia: #44403c;
+    --akcent: #f59e0b;
+    --akcent-jasny: #3a2a12;
+    --akcent-tekst: #fbbf24;
+    --ostrzezenie: #fca5a5;
+    --ostrzezenie-tlo: #3f1d1d;
+    --uwaga: #7dd3fc;
+    --uwaga-tlo: #0c2a3d;
+    --ok: #86efac;
+    --cien: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--tlo);
+  color: var(--tekst);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* ---------- układ ---------- */
+
+.app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 0 96px;
+}
+
+.naglowek {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--tlo-karta);
+  border-bottom: 1px solid var(--linia);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.marka {
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.marka span {
+  color: var(--akcent);
+}
+
+.nazwa-projektu {
+  flex: 1 1 200px;
+  min-width: 140px;
+  font-size: 16px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--tlo-wglebienie);
+  color: var(--tekst);
+}
+
+.nazwa-projektu:focus {
+  outline: none;
+  border-color: var(--akcent);
+  background: var(--tlo-karta);
+}
+
+.naglowek-akcje {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+main {
+  padding: 16px;
+}
+
+/* ---------- zakładki ---------- */
+
+.zakladki {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  background: var(--tlo-karta);
+  border-top: 1px solid var(--linia);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.zakladka {
+  appearance: none;
+  border: none;
+  background: none;
+  color: var(--tekst-slaby);
+  padding: 10px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-height: 60px;
+  border-top: 3px solid transparent;
+}
+
+.zakladka svg {
+  width: 22px;
+  height: 22px;
+}
+
+.zakladka[aria-selected='true'] {
+  color: var(--akcent);
+  border-top-color: var(--akcent);
+  background: var(--akcent-jasny);
+}
+
+@media (min-width: 860px) {
+  .app {
+    padding-bottom: 24px;
+  }
+  .zakladki {
+    position: static;
+    max-width: 1200px;
+    margin: 16px auto 0;
+    border-top: none;
+    border-bottom: 1px solid var(--linia);
+    background: transparent;
+    grid-template-columns: repeat(4, auto);
+    justify-content: start;
+    gap: 4px;
+  }
+  .zakladka {
+    flex-direction: row;
+    font-size: 15px;
+    padding: 12px 20px;
+    min-height: 48px;
+    border-top: none;
+    border-bottom: 3px solid transparent;
+    border-radius: 8px 8px 0 0;
+  }
+  .zakladka[aria-selected='true'] {
+    border-top-color: transparent;
+    border-bottom-color: var(--akcent);
+  }
+}
+
+/* ---------- karty i siatki ---------- */
+
+.karta {
+  background: var(--tlo-karta);
+  border: 1px solid var(--linia);
+  border-radius: var(--promien);
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: var(--cien);
+}
+
+.karta > h2 {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.karta > .podtytul {
+  margin: 0 0 16px;
+  color: var(--tekst-slaby);
+  font-size: 14px;
+}
+
+.kolumny {
+  display: grid;
+  gap: 16px;
+}
+
+@media (min-width: 860px) {
+  .kolumny {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+  .kolumny > .pelna {
+    grid-column: 1 / -1;
+  }
+}
+
+.siatka-pol {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+/* ---------- pola formularza ---------- */
+
+.pole {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pole > label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tekst-slaby);
+}
+
+.pole-wejscie {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.pole input[type='number'],
+.pole input[type='text'],
+.pole select {
+  width: 100%;
+  min-height: 48px;
+  font-size: 17px;
+  font-weight: 600;
+  font-family: inherit;
+  padding: 10px 44px 10px 12px;
+  border: 1px solid var(--linia);
+  border-radius: 10px;
+  background: var(--tlo-karta);
+  color: var(--tekst);
+}
+
+.pole select {
+  padding-right: 12px;
+  cursor: pointer;
+}
+
+.pole input:focus,
+.pole select:focus {
+  outline: 2px solid var(--akcent);
+  outline-offset: -1px;
+}
+
+.jednostka {
+  position: absolute;
+  right: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tekst-slaby);
+  pointer-events: none;
+}
+
+.podpowiedz {
+  font-size: 12px;
+  color: var(--tekst-slaby);
+  line-height: 1.4;
+}
+
+/* ---------- przyciski ---------- */
+
+.przycisk {
+  appearance: none;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--linia);
+  background: var(--tlo-karta);
+  color: var(--tekst);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.przycisk:hover {
+  border-color: var(--akcent);
+}
+
+.przycisk.glowny {
+  background: var(--akcent);
+  border-color: var(--akcent);
+  color: #fff;
+}
+
+.przycisk.glowny:hover {
+  filter: brightness(1.08);
+}
+
+.przycisk.niebezpieczny {
+  color: var(--ostrzezenie);
+}
+
+.przycisk:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---------- wybór z kafelków ---------- */
+
+.wybor {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.wybor button {
+  appearance: none;
+  font-family: inherit;
+  min-height: 60px;
+  padding: 10px 12px;
+  border: 2px solid var(--linia);
+  border-radius: 10px;
+  background: var(--tlo-karta);
+  color: var(--tekst);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.wybor button small {
+  font-weight: 500;
+  font-size: 11px;
+  color: var(--tekst-slaby);
+}
+
+.wybor button[aria-pressed='true'] {
+  border-color: var(--akcent);
+  background: var(--akcent-jasny);
+  color: var(--akcent-tekst);
+}
+
+.wybor button[aria-pressed='true'] small {
+  color: var(--akcent-tekst);
+}
+
+/* ---------- przełącznik ---------- */
+
+.przelacznik {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.przelacznik input {
+  width: 24px;
+  height: 24px;
+  accent-color: var(--akcent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.przelacznik-opis {
+  display: flex;
+  flex-direction: column;
+}
+
+.przelacznik-opis strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.przelacznik-opis span {
+  font-size: 12px;
+  color: var(--tekst-slaby);
+}
+
+/* ---------- wyniki ---------- */
+
+.wyniki {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.wynik {
+  background: var(--tlo-karta);
+  border: 1px solid var(--linia);
+  border-radius: var(--promien);
+  padding: 14px 16px;
+  box-shadow: var(--cien);
+}
+
+.wynik.wyrozniony {
+  border-color: var(--akcent);
+  background: var(--akcent-jasny);
+}
+
+.wynik-etykieta {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tekst-slaby);
+  margin-bottom: 4px;
+}
+
+.wynik.wyrozniony .wynik-etykieta {
+  color: var(--akcent-tekst);
+}
+
+.wynik-wartosc {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.wynik-wartosc small {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--tekst-slaby);
+  margin-left: 3px;
+}
+
+.wynik.wyrozniony .wynik-wartosc,
+.wynik.wyrozniony .wynik-wartosc small {
+  color: var(--akcent-tekst);
+}
+
+.wynik-opis {
+  font-size: 12px;
+  color: var(--tekst-slaby);
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+/* ---------- komunikaty ---------- */
+
+.komunikat {
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  font-size: 14px;
+  line-height: 1.5;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.komunikat.blad {
+  background: var(--ostrzezenie-tlo);
+  color: var(--ostrzezenie);
+  border: 1px solid currentColor;
+}
+
+.komunikat.info {
+  background: var(--uwaga-tlo);
+  color: var(--uwaga);
+  border: 1px solid currentColor;
+}
+
+.komunikat-ikona {
+  flex-shrink: 0;
+  font-size: 18px;
+  line-height: 1.3;
+}
+
+/* ---------- tabele ---------- */
+
+.tabela-otoczka {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -16px;
+  padding: 0 16px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  min-width: 460px;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--linia);
+  vertical-align: top;
+}
+
+th {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--tekst-slaby);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+td.liczba,
+th.liczba {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+tr.suma td {
+  font-weight: 700;
+  border-top: 2px solid var(--linia);
+  background: var(--tlo-wglebienie);
+}
+
+td small {
+  display: block;
+  color: var(--tekst-slaby);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+/* ---------- rysunki ---------- */
+
+.rysunek {
+  width: 100%;
+  height: auto;
+  display: block;
+  background: var(--tlo-karta);
+  border-radius: 8px;
+}
+
+.rysunek text {
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+  fill: var(--tekst-slaby);
+}
+
+.rysunek .drewno {
+  fill: var(--akcent-jasny);
+  stroke: var(--akcent);
+  stroke-width: 2;
+}
+
+.rysunek .mur {
+  fill: var(--tlo-wglebienie);
+  stroke: var(--tekst-slaby);
+  stroke-width: 1.5;
+}
+
+.rysunek .wymiar {
+  stroke: var(--tekst-slaby);
+  stroke-width: 1;
+  fill: none;
+}
+
+.rysunek .os {
+  stroke: var(--tekst-slaby);
+  stroke-width: 1;
+  stroke-dasharray: 6 3 2 3;
+  opacity: 0.6;
+}
+
+.rysunek .podpis {
+  fill: var(--tekst);
+  font-weight: 600;
+}
+
+/* ---------- lista projektów ---------- */
+
+.lista-projektow {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.lista-projektow li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--linia);
+  border-radius: 10px;
+  background: var(--tlo-karta);
+}
+
+.lista-projektow .opis {
+  flex: 1;
+  min-width: 0;
+}
+
+.lista-projektow .opis strong {
+  display: block;
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lista-projektow .opis span {
+  font-size: 12px;
+  color: var(--tekst-slaby);
+}
+
+/* ---------- okno modalne ---------- */
+
+.nakladka {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(28, 25, 23, 0.55);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+}
+
+@media (min-width: 640px) {
+  .nakladka {
+    align-items: center;
+    padding: 24px;
+  }
+}
+
+.okno {
+  background: var(--tlo-karta);
+  border-radius: 16px 16px 0 0;
+  padding: 20px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+@media (min-width: 640px) {
+  .okno {
+    border-radius: 16px;
+  }
+}
+
+.okno h2 {
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+
+.okno-akcje {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.link-do-kopiowania {
+  width: 100%;
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 12px;
+  padding: 10px;
+  border: 1px solid var(--linia);
+  border-radius: 8px;
+  background: var(--tlo-wglebienie);
+  color: var(--tekst);
+  word-break: break-all;
+  min-height: 90px;
+  resize: vertical;
+}
+
+/* ---------- pomocnicze ---------- */
+
+.rzad {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.odstep {
+  height: 16px;
+}
+
+.wzor {
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 13px;
+  background: var(--tlo-wglebienie);
+  border-left: 3px solid var(--akcent);
+  padding: 10px 12px;
+  border-radius: 0 8px 8px 0;
+  margin: 10px 0;
+  overflow-x: auto;
+  line-height: 1.6;
+}
+
+.pusto {
+  text-align: center;
+  color: var(--tekst-slaby);
+  padding: 32px 16px;
+  font-size: 14px;
+}
+
+/* ---------- wydruk ---------- */
+
+@media print {
+  .tylko-druk {
+    display: block !important;
+  }
+
+  .naglowek,
+  .zakladki,
+  .bez-druku {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+    color: #000;
+    font-size: 11pt;
+  }
+
+  .app {
+    max-width: none;
+    padding: 0;
+  }
+
+  .karta {
+    border: 1px solid #999;
+    box-shadow: none;
+    break-inside: avoid;
+    margin-bottom: 10pt;
+  }
+
+  .wynik {
+    border: 1px solid #999;
+    box-shadow: none;
+  }
+
+  table {
+    min-width: 0;
+    font-size: 10pt;
+  }
+
+  .tabela-otoczka {
+    overflow: visible;
+    margin: 0;
+    padding: 0;
+  }
+
+  .karta,
+  tr {
+    break-inside: avoid;
+  }
+}

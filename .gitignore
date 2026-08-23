@@ -1,0 +1,9 @@
+node_modules/
+dist/
+dev-dist/
+*.local
+.DS_Store
+
+# Materiały konsultacyjne — dokumenty robocze z pytaniami do konkretnych osób.
+# Repozytorium jest publiczne, a te pliki nie muszą takie być.
+docs/
