@@ -18,5 +18,53 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+
+    <script>
+      /*
+       * Ratunek na wypadek nieaktualnej pamięci podręcznej.
+       *
+       * Nazwy plików aplikacji zawierają skrót ich treści, więc po wdrożeniu
+       * zmieniają się, a stare znikają z serwera. Gdyby przeglądarka trzymała
+       * stary service worker, mogłaby podać stronę odwołującą się do plików,
+       * których już nie ma — i użytkownik zobaczyłby biały ekran, bez żadnej
+       * informacji o tym, co się stało i co z tym zrobić.
+       *
+       * Dlatego sprawdzamy, czy aplikacja w ogóle się pojawiła. Jeśli nie,
+       * kasujemy service workera razem z pamięcią i przeładowujemy stronę.
+       * Znacznik w sessionStorage pilnuje, żeby zrobić to najwyżej raz —
+       * inaczej przy prawdziwej awarii strona wpadłaby w pętlę przeładowań.
+       */
+      setTimeout(function () {
+        var korzen = document.getElementById('root')
+        if (korzen && korzen.childElementCount > 0) return
+
+        try {
+          if (sessionStorage.getItem('jonasz.naprawa') === '1') return
+          sessionStorage.setItem('jonasz.naprawa', '1')
+        } catch (e) {
+          return
+        }
+
+        var sprzatanie = []
+        if ('serviceWorker' in navigator) {
+          sprzatanie.push(
+            navigator.serviceWorker.getRegistrations().then(function (rejestracje) {
+              return Promise.all(rejestracje.map(function (r) { return r.unregister() }))
+            }),
+          )
+        }
+        if (window.caches) {
+          sprzatanie.push(
+            caches.keys().then(function (klucze) {
+              return Promise.all(klucze.map(function (k) { return caches.delete(k) }))
+            }),
+          )
+        }
+
+        Promise.all(sprzatanie)
+          .catch(function () {})
+          .then(function () { location.reload() })
+      }, 8000)
+    </script>
   </body>
 </html>
