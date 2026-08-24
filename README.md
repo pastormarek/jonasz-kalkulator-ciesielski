@@ -93,6 +93,19 @@ ekranie, wydruk i testy, więc te trzy rzeczy nie mogą się rozjechać.
 Wszystkie wymiary wewnątrz rdzenia są w **milimetrach**, kąty w **stopniach**.
 Zamiana na metry i centymetry następuje dopiero przy wyświetlaniu.
 
+## Konsultacja ciesielska
+
+Założenia obliczeniowe zostały sprawdzone przez cieślę. Efektem są między innymi:
+naddatek na docięcie 10 cm zamiast 5, rzaz piły 5 mm, dodatkowa łata pod gąsior
+i na pas okapowy, kleszcze nieprzechodzące poza krokwie, wkręty ciesielskie
+zamiast kątowników jako domyślne mocowanie krokwi, impregnat jako opcja (drewno
+z tartaku bywa impregnowane w cenie) oraz centymetry jako domyślna jednostka.
+
+Pełny zapis uwag jest w `docs/odpowiedzi-jonasza.md` (katalog nie trafia do
+repozytorium). Zostały tam też rzeczy do zbudowania: wybór sposobu połączenia
+w kalenicy, wysokość słupów liczona ze ścianki kolankowej zamiast zgadywana,
+rozstaw krokwi dopasowany do okien dachowych i strefy śniegowe według lokalizacji.
+
 ## Zakres odpowiedzialności
 
 Kalkulator liczy geometrię i ilości. **Nie sprawdza nośności ani doboru

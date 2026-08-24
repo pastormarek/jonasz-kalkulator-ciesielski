@@ -290,7 +290,9 @@ export function calculate(input: RoofInput): Calculation {
 
   // --- warstwy pokrycia ---
   const areas: AreaItem[] = []
-  const battenRows = Math.ceil(slope.slopeLength / input.battenSpacing) + 1
+  // Poza rzędami wynikającymi z rozstawu dochodzą dwie łaty, o których łatwo
+  // zapomnieć: jedna pod gąsior w kalenicy i jedna na pas okapowy.
+  const battenRows = Math.ceil(slope.slopeLength / input.battenSpacing) + 2
   const battenRunM = ((battenRows * planLength) / 1000) * mainSlopes
 
   if (input.hasSheathing) {
@@ -328,30 +330,44 @@ export function calculate(input: RoofInput): Calculation {
 
   const fasteners: FastenerItem[] = [
     {
-      name: 'Kotwa / śruba mocująca murłatę do wieńca',
+      name: 'Pręt gwintowany M14–M16 na kotwie chemicznej',
       count: anchors,
       unit: 'szt.',
-      note: `rozstaw co ${ANCHOR_SPACING / 1000} m, łącznie ${fmtM(plateLength)} m murłaty`,
-    },
-    {
-      name: 'Kątownik ciesielski krokiew–murłata',
-      count: rafterCount * 2,
-      unit: 'szt.',
-      note: 'po dwa na każde oparcie krokwi',
-    },
-    {
-      name: 'Wkręt ciesielski do kątowników',
-      count: rafterCount * 2 * 10,
-      unit: 'szt.',
-      note: 'po ok. 10 wkrętów na kątownik',
-    },
-    {
-      name: 'Gwóźdź / wkręt do połączeń kalenicowych',
-      count: rafterCount * 4,
-      unit: 'szt.',
-      note: 'po cztery na parę krokwi',
+      note: `mocuje murłatę do wieńca, rozstaw co ${ANCHOR_SPACING / 1000} m, łącznie ${fmtM(plateLength)} m murłaty`,
     },
   ]
+
+  // Krokiew mocuje się do murłaty albo długimi wkrętami wprost, albo na kątowniki.
+  if (input.rafterFixing === 'katowniki') {
+    fasteners.push(
+      {
+        name: 'Kątownik ciesielski krokiew–murłata',
+        count: rafterCount * 2,
+        unit: 'szt.',
+        note: 'po dwa na każde oparcie krokwi',
+      },
+      {
+        name: 'Wkręt do kątowników',
+        count: rafterCount * 2 * 10,
+        unit: 'szt.',
+        note: 'po ok. 10 wkrętów na kątownik',
+      },
+    )
+  } else {
+    fasteners.push({
+      name: 'Wkręt ciesielski krokiew–murłata',
+      count: rafterCount * 2,
+      unit: 'szt.',
+      note: 'po dwa na oparcie, wkręcane wprost w murłatę — typowo 8×220, 8×240 lub 10×240 mm',
+    })
+  }
+
+  fasteners.push({
+    name: 'Wkręt do połączenia w kalenicy',
+    count: rafterCount * 4,
+    unit: 'szt.',
+    note: 'po cztery na parę krokwi',
+  })
 
   if (collar && collar.valid) {
     fasteners.push({
@@ -377,14 +393,21 @@ export function calculate(input: RoofInput): Calculation {
       input.counterBattenSection.h,
       counterBattenLinearM * 1000,
     )
-  const impregnationLitres =
-    (timberSurfaceM2 + battenSurfaceM2) * IMPREGNATION_PER_M2 * IMPREGNATION_COATS
+  const impregnationLitres = input.hasImpregnation
+    ? (timberSurfaceM2 + battenSurfaceM2) * IMPREGNATION_PER_M2 * IMPREGNATION_COATS
+    : 0
+
+  if (!input.hasImpregnation) {
+    notes.push(
+      'Impregnat nie jest liczony — drewno konstrukcyjne z tartaku bywa impregnowane w cenie. Przy zamawianiu zaznacz, że ma być impregnowane, albo włącz tę pozycję w ustawieniach.',
+    )
+  }
 
   areas.push({
     name: 'Łaty',
     net: battenLinearM,
     gross: battenLinearM * 1.05,
-    note: `${battenRows} rzędów na połaci, rozstaw ${fmt(input.battenSpacing)} mm — wynik w metrach bieżących`,
+    note: `${battenRows} rzędów na połaci (w tym łata pod gąsior i na pas okapowy), rozstaw ${fmt(input.battenSpacing)} mm`,
   })
   areas.push({
     name: 'Kontrłaty',
@@ -470,12 +493,14 @@ function addPurlinFrame(
   )
 
   if (input.hasClamps) {
+    // Kleszcze kręci się z boku do krokwi i nie wolno im wystawać poza nie,
+    // więc kończą się na krokwiach — nic ponad rozpiętość nie doliczamy.
     timber.push({
       name: 'Kleszcze (deska)',
       section: input.clampSection,
-      length: withAllowance(input.span + 2 * input.rafterSection.b, input.cutAllowance),
+      length: withAllowance(input.span, input.cutAllowance),
       count: postsPerPurlin * 2,
-      note: 'para desek na każdy słup, obejmuje krokwie z dwóch stron',
+      note: 'para desek na każdy słup, kręcona z boku do krokwi',
     })
   }
 

@@ -9,7 +9,8 @@
 
 import type { Calculation, TimberGroup } from '../core/materials'
 import { Karta, Wynik, Komunikat } from './controls'
-import { liczba, mNaMetry, mm, przekroj, odmiana } from './format'
+import { liczba, przekroj, odmiana } from './format'
+import { useDlugosc, belka } from './units'
 
 export function ViewMaterial({ wynik }: { wynik: Calculation }) {
   const { input } = wynik
@@ -39,9 +40,13 @@ export function ViewMaterial({ wynik }: { wynik: Calculation }) {
         />
         <Wynik
           etykieta="Impregnat"
-          wartosc={liczba(wynik.impregnationLitres, 1)}
-          jednostka="l"
-          opis="dwie warstwy, 0,2 l/m² powierzchni drewna"
+          wartosc={wynik.impregnationLitres > 0 ? liczba(wynik.impregnationLitres, 1) : '—'}
+          jednostka={wynik.impregnationLitres > 0 ? 'l' : undefined}
+          opis={
+            wynik.impregnationLitres > 0
+              ? 'dwie warstwy, 0,2 l/m² powierzchni drewna'
+              : 'zamów drewno już impregnowane'
+          }
         />
       </div>
 
@@ -80,7 +85,7 @@ export function ViewMaterial({ wynik }: { wynik: Calculation }) {
                 g.plan.purchase.map((p) => (
                   <tr key={`${g.label}-${p.length}`}>
                     <td>{g.label}</td>
-                    <td>{mNaMetry(p.length, 1)} m</td>
+                    <td>{belka(p.length)}</td>
                     <td className="liczba">{liczba(p.count)}</td>
                     <td className="liczba">
                       {liczba(
@@ -171,15 +176,17 @@ export function ViewMaterial({ wynik }: { wynik: Calculation }) {
                   </td>
                 </tr>
               ))}
-              <tr>
-                <td>
-                  Impregnat do drewna
-                  <small>dwie warstwy na całej powierzchni drewna</small>
-                </td>
-                <td className="liczba">
-                  <strong>{liczba(wynik.impregnationLitres, 1)} l</strong>
-                </td>
-              </tr>
+              {wynik.impregnationLitres > 0 && (
+                <tr>
+                  <td>
+                    Impregnat do drewna
+                    <small>dwie warstwy na całej powierzchni drewna</small>
+                  </td>
+                  <td className="liczba">
+                    <strong>{liczba(wynik.impregnationLitres, 1)} l</strong>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -190,6 +197,7 @@ export function ViewMaterial({ wynik }: { wynik: Calculation }) {
 
 /** Jedna grupa drewna: elementy o tym samym przekroju plus plan cięcia. */
 function GrupaDrewna({ grupa }: { grupa: TimberGroup }) {
+  const { dl } = useDlugosc()
   const sztuk = grupa.items.reduce((s, i) => s + i.count, 0)
 
   return (
@@ -218,7 +226,7 @@ function GrupaDrewna({ grupa }: { grupa: TimberGroup }) {
                   {it.name}
                   {it.note && <small>{it.note}</small>}
                 </td>
-                <td className="liczba">{mNaMetry(it.length)} m</td>
+                <td className="liczba">{dl(it.length)}</td>
                 <td className="liczba">
                   <strong>{liczba(it.count)}</strong>
                 </td>
@@ -257,10 +265,10 @@ function GrupaDrewna({ grupa }: { grupa: TimberGroup }) {
               {grupa.plan.bars.map((bar, i) => (
                 <tr key={i}>
                   <td>
-                    {i + 1}. {mNaMetry(bar.stockLength, 1)} m
+                    {i + 1}. {belka(bar.stockLength)}
                   </td>
-                  <td>{bar.pieces.map((p) => `${mNaMetry(p)} m`).join(' + ')}</td>
-                  <td className="liczba">{mm(bar.waste)} mm</td>
+                  <td>{bar.pieces.map((p) => dl(p)).join(' + ')}</td>
+                  <td className="liczba">{dl(bar.waste)}</td>
                 </tr>
               ))}
             </tbody>
@@ -268,7 +276,7 @@ function GrupaDrewna({ grupa }: { grupa: TimberGroup }) {
         </div>
         {grupa.plan.impossible.length > 0 && (
           <Komunikat rodzaj="blad">
-            Nie da się wyciąć: {grupa.plan.impossible.map((p) => `${mNaMetry(p)} m`).join(', ')}.
+            Nie da się wyciąć: {grupa.plan.impossible.map((p) => dl(p)).join(', ')}.
             Zamów drewno na wymiar albo włącz łączenie krokwi.
           </Komunikat>
         )}

@@ -163,14 +163,14 @@ describe('zestawienie dachu', () => {
     expect(names).toContain('Łaty') // łaty zostają
   })
 
-  it('impregnat rośnie razem z ilością drewna', () => {
-    const small = calculate(base({ span: 6000, length: 8000 }))
-    const big = calculate(base({ span: 10000, length: 16000 }))
+  it('impregnat rośnie razem z ilością drewna, gdy jest włączony', () => {
+    const small = calculate(base({ span: 6000, length: 8000, hasImpregnation: true }))
+    const big = calculate(base({ span: 10000, length: 16000, hasImpregnation: true }))
     expect(big.impregnationLitres).toBeGreaterThan(small.impregnationLitres)
   })
 
   it('liczba kątowników odpowiada podwojonej liczbie krokwi', () => {
-    const c = calculate(base())
+    const c = calculate(base({ rafterFixing: 'katowniki' }))
     const rafters = c.timber
       .filter((t) => t.name.startsWith('Krokiew') || t.name.startsWith('Kulawka'))
       .reduce((s, t) => s + t.count, 0)
@@ -264,5 +264,63 @@ describe('drewno na wymiar i łączenie krokwi', () => {
     )
     expect(c.notes.some((n) => n.includes('Styk wypada'))).toBe(true)
     expect(c.warnings).toHaveLength(0)
+  })
+})
+
+
+describe('poprawki po konsultacji ciesielskiej', () => {
+  it('domyślnie liczy wkręty do murłaty, a nie kątowniki', () => {
+    const c = calculate(base())
+    expect(c.fasteners.some((f) => f.name.includes('Wkręt ciesielski krokiew–murłata'))).toBe(true)
+    expect(c.fasteners.some((f) => f.name.includes('Kątownik'))).toBe(false)
+  })
+
+  it('kątowniki pojawiają się dopiero po wybraniu ich wprost', () => {
+    const c = calculate(base({ rafterFixing: 'katowniki' }))
+    expect(c.fasteners.some((f) => f.name.includes('Kątownik'))).toBe(true)
+    expect(c.fasteners.some((f) => f.name.includes('Wkręt ciesielski krokiew–murłata'))).toBe(false)
+  })
+
+  it('murłatę kotwi prętem gwintowanym na kotwie chemicznej', () => {
+    const c = calculate(base())
+    expect(c.fasteners.some((f) => f.name.includes('Pręt gwintowany'))).toBe(true)
+  })
+
+  it('w kalenicy liczy wkręty, nie gwoździe', () => {
+    const c = calculate(base())
+    const kalenica = c.fasteners.find((f) => f.name.includes('kalenicy'))
+    expect(kalenica?.name).toContain('Wkręt')
+    expect(kalenica?.name).not.toContain('Gwóźdź')
+  })
+
+  it('impregnatu nie liczy, dopóki nie zostanie włączony', () => {
+    expect(calculate(base()).impregnationLitres).toBe(0)
+    expect(calculate(base({ hasImpregnation: true })).impregnationLitres).toBeGreaterThan(0)
+  })
+
+  it('wyłączony impregnat zostawia uwagę o drewnie z tartaku', () => {
+    const c = calculate(base())
+    expect(c.notes.some((n) => n.includes('impregnowane'))).toBe(true)
+  })
+
+  it('kleszcze nie wystają poza krokwie', () => {
+    const c = calculate(base({ truss: 'purlin', hasClamps: true, span: 8000, cutAllowance: 0 }))
+    const kleszcze = c.timber.find((t) => t.name.startsWith('Kleszcze'))
+    expect(kleszcze?.length).toBe(8000)
+  })
+
+  it('do łat dolicza rząd pod gąsior i na pas okapowy', () => {
+    const c = calculate(base())
+    const laty = c.areas.find((a) => a.name === 'Łaty')
+    expect(laty?.note).toContain('gąsior')
+
+    // Dwa dodatkowe rzędy ponad te, które wynikają z samego rozstawu.
+    const zRozstawu = Math.ceil(c.slope.slopeLength / c.input.battenSpacing)
+    const szerokoscM = (c.input.length + 2 * c.input.gableOverhang) / 1000
+    expect(laty!.net).toBeCloseTo((zRozstawu + 2) * szerokoscM * c.mainSlopes, 1)
+  })
+
+  it('naddatek na docięcie wynosi 10 cm', () => {
+    expect(defaultInput().cutAllowance).toBe(100)
   })
 })

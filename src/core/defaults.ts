@@ -7,7 +7,7 @@
  * sprawdzić je z projektem.
  */
 
-import type { RoofInput, Covering, StockMode, SpliceSupport } from './types'
+import type { RoofInput, Covering, StockMode, SpliceSupport, RafterFixing } from './types'
 
 /** Długości drewna dostępne od ręki w składzie budowlanym [mm]. */
 export const STOCK_LENGTHS = [3000, 4000, 5000, 6000]
@@ -82,6 +82,18 @@ export const COVERING_INFO: Record<Covering, { label: string; battenSpacing: num
   },
 }
 
+/** Opisy sposobów mocowania krokwi. */
+export const FIXING_INFO: Record<RafterFixing, { label: string; hint: string }> = {
+  wkrety: {
+    label: 'Wkręty ciesielskie',
+    hint: 'Po dwa wkręty na oparcie, wkręcane wprost w murłatę. Typowe długości 8×220, 8×240, 10×240 mm.',
+  },
+  katowniki: {
+    label: 'Kątowniki',
+    hint: 'Po dwa kątowniki na oparcie, każdy na komplet wkrętów. Sprawdź, czy projekt tego wymaga.',
+  },
+}
+
 /** Nazwy kształtów dachu widoczne w interfejsie. */
 export const SHAPE_LABELS = {
   gable: 'Dwuspadowy',
@@ -134,10 +146,12 @@ export function defaultInput(): RoofInput {
     hasSheathing: false,
     hasMembrane: true,
     hasInsulation: true,
+    rafterFixing: 'wkrety',
+    hasImpregnation: false,
 
     openings: [],
 
-    cutAllowance: 50,
+    cutAllowance: 100,
     stockLengths: [...STOCK_LENGTHS],
     stockMode: 'handlowe',
     splice: {

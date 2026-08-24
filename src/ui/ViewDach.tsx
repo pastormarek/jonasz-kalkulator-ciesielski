@@ -6,8 +6,8 @@
  * warstwy pokrycia i otwory.
  */
 
-import type { RoofInput, Covering, StockMode, SpliceSupport, Opening } from '../core/types'
-import { COVERING_INFO, SHAPE_LABELS, TRUSS_LABELS, stockLengthsFor, COMMON_SECTIONS } from '../core/defaults'
+import type { RoofInput, Covering, StockMode, SpliceSupport, Opening, RafterFixing } from '../core/types'
+import { COVERING_INFO, SHAPE_LABELS, TRUSS_LABELS, stockLengthsFor, COMMON_SECTIONS, FIXING_INFO } from '../core/defaults'
 import {
   Karta,
   PoleLiczbowe,
@@ -296,6 +296,29 @@ export function ViewDach({
           opis="Wełna wchodzi tylko między krokwie."
           checked={input.hasInsulation}
           onChange={(hasInsulation) => onChange({ hasInsulation })}
+        />
+      </Karta>
+
+      <Karta tytul="Łączniki i impregnat" podtytul="Jak krokiew trzyma się murłaty.">
+        <WyborKafelkowy
+          value={input.rafterFixing}
+          onChange={(rafterFixing: RafterFixing) => onChange({ rafterFixing })}
+          opcje={[
+            { value: 'wkrety', label: FIXING_INFO.wkrety.label, opis: 'dwa na oparcie' },
+            { value: 'katowniki', label: FIXING_INFO.katowniki.label, opis: 'blacha + wkręty' },
+          ]}
+        />
+        <div className="podpowiedz" style={{ marginTop: 8 }}>
+          {FIXING_INFO[input.rafterFixing].hint}
+        </div>
+
+        <div className="odstep" />
+
+        <Przelacznik
+          label="Licz impregnat"
+          opis="Drewno z tartaku bywa impregnowane w cenie — wtedy nie ma czego doliczać."
+          checked={input.hasImpregnation}
+          onChange={(hasImpregnation) => onChange({ hasImpregnation })}
         />
       </Karta>
 

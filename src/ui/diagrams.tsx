@@ -13,7 +13,8 @@
 import { deg2rad, type SlopeGeometry, type Notch, type CollarGeometry } from '../core/geometry'
 import type { RoofInput } from '../core/types'
 import type { SpliceResult } from '../core/materials'
-import { mNaMetry, mm, stopnie } from './format'
+import { mm, stopnie } from './format'
+import { useDlugosc } from './units'
 
 /** Przekrój poprzeczny więźby z podstawowymi wymiarami. */
 export function RysunekPrzekroju({
@@ -27,6 +28,7 @@ export function RysunekPrzekroju({
   collar: CollarGeometry | null
   splice: SpliceResult
 }) {
+  const { dl } = useDlugosc()
   const isShed = input.shape === 'shed'
   const span = input.span
   const rise = slope.rise
@@ -114,10 +116,10 @@ export function RysunekPrzekroju({
         x1={xL}
         x2={isShed ? xR : xK}
         y={baseY + 34}
-        etykieta={`${mNaMetry(isShed ? span : span / 2)} m`}
+        etykieta={dl(isShed ? span : span / 2)}
       />
       {!isShed && (
-        <WymiarPoziomy x1={xK} x2={xR} y={baseY + 34} etykieta={`${mNaMetry(span / 2)} m`} />
+        <WymiarPoziomy x1={xK} x2={xR} y={baseY + 34} etykieta={dl(span / 2)} />
       )}
 
       {/* wymiar wysokości kalenicy */}
@@ -125,7 +127,7 @@ export function RysunekPrzekroju({
         x={isShed ? xR + 44 : xK + 8}
         y1={baseY}
         y2={yK}
-        etykieta={`${mNaMetry(rise)} m`}
+        etykieta={dl(rise)}
         przesunTekst={isShed ? 0 : 14}
       />
 
@@ -146,13 +148,13 @@ export function RysunekPrzekroju({
         textAnchor="middle"
         transform={`rotate(${-input.pitchDeg} ${(xL - okapDX + xK) / 2} ${(yL + okapDY + yK) / 2 - 16})`}
       >
-        krokiew {mNaMetry(slope.rafterTotal)} m
+        krokiew {dl(slope.rafterTotal)}
       </text>
 
       {/* opis okapu */}
       {eaves > 0 && (
         <text x={xL - okapDX} y={baseY + 58} textAnchor="start">
-          okap {mm(eaves)} mm
+          okap {dl(eaves)}
         </text>
       )}
     </svg>
@@ -175,11 +177,12 @@ function JetkaNaRysunku({
   const [x1, y1] = pkt(lewa, collar.height)
   const [x2] = pkt(lewa + collar.span, collar.height)
   const grubosc = Math.max(3, input.collarSection.h * skala)
+  const { dl } = useDlugosc()
   return (
     <g>
       <line x1={x1} y1={y1} x2={x2} y2={y1} stroke="var(--akcent)" strokeWidth={grubosc} opacity={0.85} />
       <text x={(x1 + x2) / 2} y={y1 - 10} textAnchor="middle" className="podpis">
-        jętka {mNaMetry(collar.length)} m
+        jętka {dl(collar.length)}
       </text>
     </g>
   )

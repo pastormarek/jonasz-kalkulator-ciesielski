@@ -11,7 +11,8 @@ import type { PDFDocumentProxy } from 'pdfjs-dist'
 import type { RoofInput } from '../core/types'
 import { analizujPdf, renderujStrone, ROLA_LABELS, type Kandydat, type Rola } from '../pdf/extract'
 import { Karta, Komunikat } from './controls'
-import { liczba, mm, mNaMetry, przekroj, stopnie } from './format'
+import { liczba, przekroj, stopnie } from './format'
+import { useDlugosc } from './units'
 
 export function ViewProjekt({
   input,
@@ -30,6 +31,7 @@ export function ViewProjekt({
   const [blad, setBlad] = useState('')
   const [uzyte, setUzyte] = useState<Set<string>>(new Set())
 
+  const { dl } = useDlugosc()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const otoczkaRef = useRef<HTMLDivElement>(null)
 
@@ -164,13 +166,13 @@ export function ViewProjekt({
                   <tr>
                     <td>Rozpiętość</td>
                     <td className="liczba">
-                      <strong>{mNaMetry(input.span)} m</strong>
+                      <strong>{dl(input.span)}</strong>
                     </td>
                   </tr>
                   <tr>
                     <td>Długość budynku</td>
                     <td className="liczba">
-                      <strong>{mNaMetry(input.length)} m</strong>
+                      <strong>{dl(input.length)}</strong>
                     </td>
                   </tr>
                   <tr>
@@ -182,13 +184,13 @@ export function ViewProjekt({
                   <tr>
                     <td>Okap</td>
                     <td className="liczba">
-                      <strong>{mm(input.eaves)} mm</strong>
+                      <strong>{dl(input.eaves)}</strong>
                     </td>
                   </tr>
                   <tr>
                     <td>Rozstaw krokwi</td>
                     <td className="liczba">
-                      <strong>{mm(input.rafterSpacingMax)} mm</strong>
+                      <strong>{dl(input.rafterSpacingMax)}</strong>
                     </td>
                   </tr>
                   <tr>
@@ -220,12 +222,13 @@ function WierszKandydata({
   const [rola, setRola] = useState<Rola>(
     kandydat.rola === 'nieznana' ? 'span' : kandydat.rola,
   )
+  const { dl } = useDlugosc()
 
   const opis = kandydat.przekroj
     ? przekroj(kandydat.przekroj.b, kandydat.przekroj.h)
     : kandydat.rola === 'pitch'
       ? stopnie(kandydat.wartosc)
-      : `${mNaMetry(kandydat.wartosc)} m`
+      : dl(kandydat.wartosc)
 
   return (
     <li style={uzyty ? { borderColor: 'var(--ok)' } : undefined}>

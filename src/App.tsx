@@ -25,6 +25,7 @@ import { ViewKrokwie } from './ui/ViewKrokwie'
 import { ViewMaterial } from './ui/ViewMaterial'
 import { ViewProjekt } from './ui/ViewProjekt'
 import { Przelacznik } from './ui/controls'
+import { DostawcaJednostek, type Jednostka } from './ui/units'
 import { dataCzas, liczba, mNaMetry } from './ui/format'
 import { SHAPE_LABELS } from './core/defaults'
 
@@ -41,6 +42,15 @@ export default function App() {
   const [projekt, setProjekt] = useState<Project>(() => decodeFromUrl() ?? recallLast() ?? newProject())
   const [zakladka, setZakladka] = useState<Zakladka>('dach')
   const [wyjasnienia, setWyjasnienia] = useState(false)
+  // Jednostka to preferencja czytania, nie cecha dachu — zostaje w tym
+  // urządzeniu i nie wędruje razem z projektem w linku.
+  const [jednostka, setJednostka] = useState<Jednostka>(() => {
+    try {
+      return localStorage.getItem('jonasz.jednostka') === 'm' ? 'm' : 'cm'
+    } catch {
+      return 'cm'
+    }
+  })
   const [oknoProjektow, setOknoProjektow] = useState(false)
   const [oknoLinku, setOknoLinku] = useState(false)
   const [projekty, setProjekty] = useState<Project[]>(() => loadProjects())
@@ -59,6 +69,15 @@ export default function App() {
     const t = setTimeout(() => setKomunikat(''), 2600)
     return () => clearTimeout(t)
   }, [komunikat])
+
+  const zmienJednostke = (nowa: Jednostka) => {
+    setJednostka(nowa)
+    try {
+      localStorage.setItem('jonasz.jednostka', nowa)
+    } catch {
+      // Tryb prywatny — ustawienie po prostu nie przetrwa zamknięcia karty.
+    }
+  }
 
   const zmien = (patch: Partial<RoofInput>) =>
     setProjekt((p) => ({ ...p, input: { ...p.input, ...patch } }))
@@ -148,21 +167,50 @@ export default function App() {
       <main>
         <NaglowekWydruku projekt={projekt} />
 
-        <div className="bez-druku" style={{ marginBottom: 12 }}>
+        <div
+          className="bez-druku"
+          style={{
+            marginBottom: 12,
+            display: 'flex',
+            gap: 16,
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            justifyContent: 'space-between',
+          }}
+        >
           <Przelacznik
             label="Pokaż wyjaśnienia"
             opis="Wzory i wyprowadzenia przy wynikach — przydatne przy nauce i przy sprawdzaniu."
             checked={wyjasnienia}
             onChange={setWyjasnienia}
           />
+          <div className="rzad" role="group" aria-label="Jednostka wymiarów">
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tekst-slaby)' }}>
+              Wymiary w:
+            </span>
+            {(['cm', 'm'] as Jednostka[]).map((j) => (
+              <button
+                key={j}
+                type="button"
+                className={jednostka === j ? 'przycisk glowny' : 'przycisk'}
+                aria-pressed={jednostka === j}
+                onClick={() => zmienJednostke(j)}
+                style={{ minWidth: 56, justifyContent: 'center' }}
+              >
+                {j}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {zakladka === 'dach' && (
-          <ViewDach input={projekt.input} onChange={zmien} wyjasnienia={wyjasnienia} />
-        )}
-        {zakladka === 'krokwie' && <ViewKrokwie wynik={wynik} wyjasnienia={wyjasnienia} />}
-        {zakladka === 'material' && <ViewMaterial wynik={wynik} />}
-        {zakladka === 'projekt' && <ViewProjekt input={projekt.input} onChange={zmien} />}
+        <DostawcaJednostek jednostka={jednostka}>
+          {zakladka === 'dach' && (
+            <ViewDach input={projekt.input} onChange={zmien} wyjasnienia={wyjasnienia} />
+          )}
+          {zakladka === 'krokwie' && <ViewKrokwie wynik={wynik} wyjasnienia={wyjasnienia} />}
+          {zakladka === 'material' && <ViewMaterial wynik={wynik} />}
+          {zakladka === 'projekt' && <ViewProjekt input={projekt.input} onChange={zmien} />}
+        </DostawcaJednostek>
 
         <StopkaOdpowiedzialnosci />
       </main>

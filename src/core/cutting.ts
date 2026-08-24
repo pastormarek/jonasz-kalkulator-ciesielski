@@ -40,7 +40,7 @@ export interface CutPlan {
 }
 
 /** Szerokość rzazu piły [mm] — każde cięcie zjada trochę materiału. */
-const KERF = 4
+const KERF = 5
 
 /**
  * Układa plan cięcia dla jednego przekroju drewna.

@@ -54,6 +54,15 @@ export interface RafterSplice {
   overlap: number
 }
 
+/**
+ * Sposób mocowania krokwi do murłaty.
+ *
+ * Kątowniki ciesielskie to rozwiązanie z katalogu, ale wielu cieśli kręci
+ * krokiew wprost do murłaty długimi wkrętami — po dwa na oparcie, bez żadnej
+ * blachy. Domyślnie liczymy wkręty, bo tak się to najczęściej robi.
+ */
+export type RafterFixing = 'wkrety' | 'katowniki'
+
 /** Rodzaj pokrycia — decyduje o rozstawie łat i zapasach. */
 export type Covering =
   | 'dachowka-ceramiczna'
@@ -149,6 +158,13 @@ export interface RoofInput {
   hasMembrane: boolean
   /** Czy liczyć ocieplenie między krokwiami. */
   hasInsulation: boolean
+  /** Sposób mocowania krokwi do murłaty. */
+  rafterFixing: RafterFixing
+  /**
+   * Czy liczyć impregnat. Drewno konstrukcyjne z tartaku bywa impregnowane
+   * już w cenie, więc domyślnie tego nie doliczamy.
+   */
+  hasImpregnation: boolean
 
   /** Otwory w połaci. */
   openings: Opening[]

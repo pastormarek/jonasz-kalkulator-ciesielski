@@ -10,7 +10,8 @@ import type { Calculation } from '../core/materials'
 import { SHAPE_LABELS, TRUSS_LABELS } from '../core/defaults'
 import { Karta, Wynik, Komunikat, Wzor } from './controls'
 import { RysunekPrzekroju, RysunekZaciosu } from './diagrams'
-import { liczba, mNaMetry, mm, stopnie, odmiana } from './format'
+import { liczba, mm, stopnie, odmiana } from './format'
+import { useDlugosc } from './units'
 
 export function ViewKrokwie({
   wynik,
@@ -20,6 +21,7 @@ export function ViewKrokwie({
   wyjasnienia: boolean
 }) {
   const { input, slope, layout, notchGeom, hip, collar, splice } = wynik
+  const { dl, rozbita } = useDlugosc()
   const krokwiRazem = wynik.timber
     .filter((t) => t.name.startsWith('Krokiew') || t.name.startsWith('Kulawka'))
     .reduce((s, t) => s + t.count, 0)
@@ -40,16 +42,16 @@ export function ViewKrokwie({
       <div className="wyniki" style={{ marginBottom: 16 }}>
         <Wynik
           etykieta={splice.active ? 'Krokiew razem' : 'Długość krokwi'}
-          wartosc={mNaMetry(slope.rafterTotal)}
-          jednostka="m"
-          opis={`z okapem ${mm(input.eaves)} mm; sama połać ${mNaMetry(slope.rafterToRidge)} m`}
+          wartosc={rozbita(slope.rafterTotal).wartosc}
+          jednostka={rozbita(slope.rafterTotal).jednostka}
+          opis={`z okapem ${dl(input.eaves)}; sama połać ${dl(slope.rafterToRidge)}`}
           wyrozniony
         />
         <Wynik
           etykieta="Rozstaw krokwi"
-          wartosc={mm(layout.spacing)}
-          jednostka="mm"
-          opis={`w osiach; w świetle ${mm(layout.clear)} mm`}
+          wartosc={rozbita(layout.spacing).wartosc}
+          jednostka={rozbita(layout.spacing).jednostka}
+          opis={`w osiach; w świetle ${dl(layout.clear)}`}
           wyrozniony
         />
         <Wynik
@@ -60,8 +62,8 @@ export function ViewKrokwie({
         />
         <Wynik
           etykieta="Wysokość kalenicy"
-          wartosc={mNaMetry(slope.rise)}
-          jednostka="m"
+          wartosc={rozbita(slope.rise).wartosc}
+          jednostka={rozbita(slope.rise).jednostka}
           opis="nad poziomem murłaty"
         />
         <Wynik
@@ -89,22 +91,22 @@ export function ViewKrokwie({
           <div className="wyniki">
             <Wynik
               etykieta="Odcinek dolny"
-              wartosc={mNaMetry(splice.lower)}
-              jednostka="m"
+              wartosc={rozbita(splice.lower).wartosc}
+              jednostka={rozbita(splice.lower).jednostka}
               opis="od okapu do podpory, z nakładką"
               wyrozniony
             />
             <Wynik
               etykieta="Odcinek górny"
-              wartosc={mNaMetry(splice.upper)}
-              jednostka="m"
+              wartosc={rozbita(splice.upper).wartosc}
+              jednostka={rozbita(splice.upper).jednostka}
               opis="od podpory do kalenicy"
               wyrozniony
             />
             <Wynik
               etykieta="Styk od okapu"
-              wartosc={mNaMetry(splice.atLength)}
-              jednostka="m"
+              wartosc={rozbita(splice.atLength).wartosc}
+              jednostka={rozbita(splice.atLength).jednostka}
               opis="mierzone wzdłuż krokwi"
             />
             <Wynik
@@ -179,15 +181,15 @@ export function ViewKrokwie({
           <div className="wyniki">
             <Wynik
               etykieta="Długość jętki"
-              wartosc={mNaMetry(collar.length)}
-              jednostka="m"
-              opis={`rozpiętość w świetle ${mNaMetry(collar.span)} m`}
+              wartosc={rozbita(collar.length).wartosc}
+              jednostka={rozbita(collar.length).jednostka}
+              opis={`rozpiętość w świetle ${dl(collar.span)}`}
               wyrozniony
             />
             <Wynik
               etykieta="Wysokość nad murłatą"
-              wartosc={mNaMetry(collar.height)}
-              jednostka="m"
+              wartosc={rozbita(collar.height).wartosc}
+              jednostka={rozbita(collar.height).jednostka}
             />
             <Wynik
               etykieta="Liczba jętek"
@@ -215,8 +217,8 @@ export function ViewKrokwie({
           <div className="wyniki" style={{ marginBottom: 16 }}>
             <Wynik
               etykieta="Długość krożyny"
-              wartosc={mNaMetry(hip.hipTotal)}
-              jednostka="m"
+              wartosc={rozbita(hip.hipTotal).wartosc}
+              jednostka={rozbita(hip.hipTotal).jednostka}
               opis="z okapem, licząc po przekątnej"
               wyrozniony
             />
@@ -239,15 +241,15 @@ export function ViewKrokwie({
             />
             <Wynik
               etykieta="Skok kulawek"
-              wartosc={mm(hip.jackDifference)}
-              jednostka="mm"
+              wartosc={rozbita(hip.jackDifference).wartosc}
+              jednostka={rozbita(hip.jackDifference).jednostka}
               opis="o tyle każda kolejna jest krótsza"
             />
             <Wynik
               etykieta="Długość kalenicy"
-              wartosc={mNaMetry(hip.ridgeLength)}
-              jednostka="m"
-              opis={hip.ridgeLength < 1 ? 'dach namiotowy — kalenica schodzi do punktu' : undefined}
+              wartosc={rozbita(hip.ridgeLength).wartosc}
+              jednostka={rozbita(hip.ridgeLength).jednostka}
+              opis={hip.ridgeLength < 1000 ? 'dach namiotowy — kalenica schodzi do punktu' : undefined}
             />
           </div>
 
@@ -265,7 +267,7 @@ export function ViewKrokwie({
                 {hip.jackLengths.map((len, i) => (
                   <tr key={i}>
                     <td>Kulawka {i + 1}</td>
-                    <td className="liczba">{mNaMetry(len)} m</td>
+                    <td className="liczba">{dl(len)}</td>
                     <td className="liczba">8</td>
                   </tr>
                 ))}

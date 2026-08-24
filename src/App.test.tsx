@@ -65,7 +65,25 @@ describe('aplikacja jako całość', () => {
     await wpisz(user, /Wysunięcie okapu/i, '0')
 
     await zakladka(user, 'krokwie')
+    // Domyślną jednostką są centymetry, więc pięciometrowa krokiew to 500.
+    expect(within(kafelek('Długość krokwi')).getByText('500')).toBeDefined()
+  })
+
+  it('przełącznik jednostek zmienia sposób podawania wymiarów', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await wpisz(user, /Rozpiętość budynku/i, '8000')
+    await wpisz(user, /^Kąt nachylenia/i, '36.87')
+    await wpisz(user, /Wysunięcie okapu/i, '0')
+    await zakladka(user, 'krokwie')
+
+    expect(within(kafelek('Długość krokwi')).getByText('500')).toBeDefined()
+    expect(within(kafelek('Długość krokwi')).getByText('cm')).toBeDefined()
+
+    await user.click(screen.getByRole('button', { name: /^m$/ }))
     expect(within(kafelek('Długość krokwi')).getByText('5,00')).toBeDefined()
+    expect(within(kafelek('Długość krokwi')).getByText('m')).toBeDefined()
   })
 
   it('ostrzega o zbyt głębokim zaciosie i przestaje, gdy go zmniejszyć', async () => {
@@ -114,7 +132,7 @@ describe('aplikacja jako całość', () => {
 
     expect(screen.getByText('Drewno do kupienia')).toBeDefined()
     expect(screen.getByText(/Lista zakupów/i)).toBeDefined()
-    expect(screen.getByText(/Impregnat do drewna/i)).toBeDefined()
+    expect(screen.getByText(/Wkręt ciesielski krokiew–murłata/i)).toBeDefined()
   })
 
   it('włączenie łączenia krokwi rozbija je na dwa odcinki', async () => {
