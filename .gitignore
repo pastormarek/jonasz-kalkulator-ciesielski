@@ -4,6 +4,7 @@ __pycache__/
 dist/
 dev-dist/
 *.local
+*.tsbuildinfo
 .DS_Store
 
 # Materiały konsultacyjne — dokumenty robocze z pytaniami do konkretnych osób.
