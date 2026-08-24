@@ -24,16 +24,18 @@ import { ViewDach } from './ui/ViewDach'
 import { ViewKrokwie } from './ui/ViewKrokwie'
 import { ViewMaterial } from './ui/ViewMaterial'
 import { ViewProjekt } from './ui/ViewProjekt'
+import { ViewModel } from './ui/ViewModel'
 import { Przelacznik } from './ui/controls'
 import { DostawcaJednostek, type Jednostka } from './ui/units'
 import { dataCzas, liczba, mNaMetry } from './ui/format'
 import { SHAPE_LABELS } from './core/defaults'
 
-type Zakladka = 'dach' | 'krokwie' | 'material' | 'projekt'
+type Zakladka = 'dach' | 'krokwie' | 'model' | 'material' | 'projekt'
 
 const ZAKLADKI: Array<{ id: Zakladka; label: string; ikona: string }> = [
   { id: 'dach', label: 'Dach', ikona: '📐' },
   { id: 'krokwie', label: 'Krokwie', ikona: '📏' },
+  { id: 'model', label: 'Model', ikona: '🏠' },
   { id: 'material', label: 'Materiał', ikona: '🪵' },
   { id: 'projekt', label: 'Projekt', ikona: '📄' },
 ]
@@ -208,6 +210,7 @@ export default function App() {
             <ViewDach input={projekt.input} onChange={zmien} wyjasnienia={wyjasnienia} />
           )}
           {zakladka === 'krokwie' && <ViewKrokwie wynik={wynik} wyjasnienia={wyjasnienia} />}
+          {zakladka === 'model' && <ViewModel wynik={wynik} nazwaProjektu={projekt.name} />}
           {zakladka === 'material' && <ViewMaterial wynik={wynik} />}
           {zakladka === 'projekt' && <ViewProjekt input={projekt.input} onChange={zmien} />}
         </DostawcaJednostek>

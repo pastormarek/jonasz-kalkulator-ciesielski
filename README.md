@@ -38,6 +38,18 @@ Wi-Fi — to najszybszy sposób, żeby sprawdzić aplikację na małym ekranie.
 - łączniki: kotwy, kątowniki, wkręty,
 - impregnat w litrach, liczony z powierzchni drewna.
 
+**Model przestrzenny**
+
+Konstrukcja rysowana z tych samych wymiarów, co zestawienie materiału. Da się ją
+obracać, przybliżać i zapisać jako obrazek. Drugi tryb rozkłada dach na etapy
+montażu — od murłat po łaty — z opisem każdego kroku i wykazem drewna właśnie na
+ten krok.
+
+Rysowanie robi własny silnik na płótnie (`src/ui/scene3d.ts`), bez biblioteki 3D.
+Konstrukcja to same prostopadłościany, a gotowa biblioteka dołożyłaby do
+aplikacji kilkaset kilobajtów — przy narzędziu, które ma działać na telefonie
+w terenie, to zła zamiana.
+
 **Projekt PDF**
 
 Wczytany plik jest przeglądany w aplikacji, a z jego warstwy tekstowej
