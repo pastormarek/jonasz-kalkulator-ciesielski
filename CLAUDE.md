@@ -4,7 +4,7 @@ Aplikacja licząca więźbę dachową: geometria krokwi, zaciosy, naroża dachu
 kopertowego, zestawienie materiału do zakupu i model przestrzenny z instrukcją
 montażu. Druga gałąź liczy **wiaty, zadaszenia przyścienne i pergole** — słupy,
 oczepy, miecze, stopy fundamentowe i odwodnienie. Trzecia to **meble ogrodowe
-i domowe do zrobienia samodzielnie**: katalog trzydziestu dwóch przepisów,
+i domowe do zrobienia samodzielnie**: katalog trzydziestu trzech przepisów,
 z listą części, instrukcją montażu krok po kroku i rozpiską drewna do kupienia.
 Działa jako strona i jako aplikacja instalowana na telefonie (PWA).
 
@@ -17,7 +17,7 @@ wyjaśnienia" z wyprowadzeniem wzorów.
 ```bash
 npm run dev      # serwer deweloperski
 npm run build    # wersja produkcyjna do dist/
-npm test         # 216 testów
+npm test         # 218 testów
 python tools/formularz-docx.py    # formularz konsultacyjny, tura 1
 python tools/formularz2-docx.py   # tura 2
 ```
@@ -77,8 +77,8 @@ Etapy montażu w `model3d.ts` (`ETAPY`) są **wspólne dla wszystkich gałęzi**
 i ułożone w kolejności stawiania: stopy → murłaty → słupy → oczepy → płatwie →
 miecze → krokwie → jętki → wymiany → kontrłaty → łaty → szczebliny, a dalej
 etapy meblowe: nogi → rama → stężenia → dno → ściany → półki → siedzisko →
-oparcie → blat → daszek. Model pokazuje tylko te etapy, w których faktycznie
-coś stoi, więc dach nigdy nie zobaczy etapów meblowych i odwrotnie.
+oparcie → drabina → blat → daszek. Model pokazuje tylko te etapy, w których
+faktycznie coś stoi, więc dach nigdy nie zobaczy etapów meblowych i odwrotnie.
 
 ## Meble: katalog przepisów, nie parametry
 
@@ -93,6 +93,10 @@ Przepisy pisze się **warsztatem** (`warsztat()` w `furniture.ts`): `pion`,
 `wzdluz`, `wszerz`, `ukos` i `polac`. Deski dachu układaj wyłącznie przez
 `polac` — ręczne rozkładanie poziomych desek na kilku wysokościach daje
 schodki zamiast połaci i szczeliny w pokryciu.
+
+Sprawdzenia, których nie da się wyprowadzić z geometrii, przepis zgłasza sam
+przez `ostrzezenia` — tak działa kontrola barierki łóżka piętrowego, bo zależy
+od grubości materaca, a nie od wymiaru mebla.
 
 **Każdy przepis musi liczyć się bez ostrzeżeń, także na obu krańcach swoich
 zakresów** — pilnuje tego test. Przy dokładaniu nowego sprawdź, czy żadna

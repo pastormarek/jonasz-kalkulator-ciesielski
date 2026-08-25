@@ -240,6 +240,13 @@ export interface PrzepisMebla {
   opisyEtapow?: Partial<Record<Etap, string>>
   /** Uwagi wykonawcze pokazywane pod instrukcją. */
   wskazowki?: string[]
+  /**
+   * Sprawdzenia, których nie da się wyprowadzić z samej geometrii — bo zależą
+   * od czegoś, czego kalkulator nie widzi. Przykład: barierka łóżka piętrowego
+   * musi wystawać ponad materac, a grubość materaca jest wyborem użytkownika,
+   * nie wymiarem mebla. Zwrócone teksty trafiają do ostrzeżeń.
+   */
+  ostrzezenia?: (w: Wymiary) => string[]
   /** Łączniki poza wkrętami: zawiasy, śruby, łańcuch. */
   laczniki?: (w: Wymiary) => DodatkowyLacznik[]
 }

@@ -181,6 +181,22 @@ describe('obliczenia mebli', () => {
     expect(dobrze.warnings).toEqual([])
   })
 
+  it('łóżko piętrowe ostrzega, gdy materac zjada barierkę', () => {
+    const cienki = calculateFurniture({
+      ...defaultFurniture(),
+      model: 'lozko-pietrowe',
+      wymiary: { materac: 120 },
+    })
+    expect(cienki.warnings).toEqual([])
+
+    const gruby = calculateFurniture({
+      ...defaultFurniture(),
+      model: 'lozko-pietrowe',
+      wymiary: { materac: 250 },
+    })
+    expect(gruby.warnings.join(' ')).toMatch(/barierka/i)
+  })
+
   it('mebel do wnętrza nie wymusza drewna ogrodowego', () => {
     const w = calculateFurniture({
       ...defaultFurniture(),

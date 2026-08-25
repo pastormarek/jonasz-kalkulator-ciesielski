@@ -152,6 +152,9 @@ export function calculateFurniture(input: FurnitureInput): FurnitureCalculation 
   const masaKg = totalVolumeM3 * gatunek.gestosc
   const gabaryt = gabarytZCzesci(czesci)
 
+  // Sprawdzenia własne przepisu — o rzeczach, o których wie tylko on sam.
+  if (przepis.ostrzezenia) warnings.push(...przepis.ostrzezenia(wymiary))
+
   // --- ostrzeżenia i uwagi doboru materiału ---
   const gdzieStoi = przepis.wilgoc ?? (przepis.kategoria === 'dom' ? 'wnetrze' : 'zewnatrz')
   if (gdzieStoi === 'grunt' && !gatunek.naZewnatrz) {

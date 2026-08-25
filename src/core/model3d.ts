@@ -53,6 +53,7 @@ export const ETAPY = [
   'polki',
   'siedzisko',
   'oparcie',
+  'drabina',
   'blat',
   'daszek',
 ] as const
@@ -144,6 +145,10 @@ export const OPIS_ETAPU: Record<Etap, { tytul: string; opis: string }> = {
   oparcie: {
     tytul: 'Oparcie i podłokietniki',
     opis: 'Zamocuj oparcie, a potem podłokietniki. Oparcie odchylone do tyłu siedzi się wygodniej niż pionowe, ale wtedy tym mocniej podważa tylne nogi — nie żałuj wkrętów w tym miejscu.',
+  },
+  drabina: {
+    tytul: 'Drabinka',
+    opis: 'Zamocuj drabinkę na stałe do ramy, u góry i u dołu. Drabinka tylko zahaczona albo oparta zsuwa się w bok dokładnie wtedy, gdy ktoś stanie na niej jedną nogą.',
   },
   blat: {
     tytul: 'Blat',

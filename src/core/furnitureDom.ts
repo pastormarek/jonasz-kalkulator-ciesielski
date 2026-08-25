@@ -39,6 +39,25 @@ function szerokoscDeski(glebokosc: number): number {
   return Math.round(glebokosc / pasow)
 }
 
+/**
+ * Ile barierki musi zostać ponad materacem [mm].
+ *
+ * Poniżej tej wartości barierka przestaje cokolwiek zatrzymywać — śpiący
+ * przetacza się przez nią razem z kołdrą. Tyle przyjmuje się dla łóżek
+ * piętrowych; jeśli mebel miałby trafić do sprzedaży, sprawdź wymagania normy,
+ * bo ta liczba ich nie zastępuje.
+ */
+const MIN_BARIERKA_NAD_MATERACEM = 160
+
+/** O tyle barierka wystaje ponad górną krawędź ramy [mm]. */
+const WYSOKOSC_BARIERKI = 320
+
+/** Największy dopuszczalny prześwit między szczeblinami barierki [mm]. */
+const MAX_PRZESWIT_SZCZEBLIN = 75
+
+/** Szerokość przerwy w barierce na wejście z drabinki [mm]. */
+const SZEROKOSC_WEJSCIA = 350
+
 export const PRZEPISY_DOM: PrzepisMebla[] = [
   // -------------------------------------------------------------------------
   {
@@ -375,11 +394,14 @@ export const PRZEPISY_DOM: PrzepisMebla[] = [
         s.ustaw('oparcie', T(20, 140))
         const deski = rozkladDesek(480, 140, 12)
         for (const zLok of deski.srodki) {
-          s.wzdluz({
+          // Wezgłowie idzie W POPRZEK łóżka, między wydłużonymi nogami —
+          // czyli wzdłuż osi Y, a nie X. Deska puszczona wzdłuż długości
+          // stanęłaby bokiem, tam gdzie leżą ramiona.
+          s.wszerz({
             nazwa: 'Deska wezgłowia',
+            x: nogaB / 2 - 20,
             od: 0,
             do: szer,
-            y: nogaB / 2 - 20,
             z: wys + 40 + zLok,
             obrot: 'sztorc',
             wkretow: 4,
@@ -403,6 +425,278 @@ export const PRZEPISY_DOM: PrzepisMebla[] = [
     wskazowki: [
       'Zmierz drzwi i klatkę schodową, zanim skręcisz ramę na stałe. Rama 160 × 200 cm nie przejdzie przez większość drzwi w całości — dlatego łączenia rób na śruby, nie na wkręty.',
       'Nie kładź materaca na pełnej płycie. Stelaż z prześwitami odprowadza wilgoć, której człowiek oddaje w nocy blisko pół litra; materac na płycie pleśnieje od spodu.',
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  {
+    id: 'lozko-pietrowe',
+    nazwa: 'Łóżko piętrowe',
+    kategoria: 'dom',
+    opis: 'Dwa miejsca do spania na powierzchni jednego. Z barierką, drabinką przykręconą na stałe i stelażem listwowym na obu poziomach.',
+    trudnosc: 3,
+    wilgoc: 'wnetrze',
+    czas: '2 dni',
+    narzedzia: ['piła', 'wkrętarka', 'wiertarka', 'poziomica', 'klucz nasadowy', 'ścisk'],
+    parametry: [
+      par.dlugosc(2000, 1800, 2100, 'Długość materaca. Zmierz oba — górny i dolny bywają różne.'),
+      par.szerokosc(900, 800, 1400, 'Szerokość materaca. Standard dziecięcy to 90 cm.'),
+      par.wlasny('poziom', 'Wysokość górnego poziomu', 1500, 1300, 1750, {
+        krok: 10,
+        jednostka: 'mm',
+        podpowiedz: 'Górna krawędź ramy nad podłogą. Wyżej — wygodniej pod spodem, ciaśniej na górze.',
+      }),
+      par.wlasny('dol', 'Wysokość dolnego poziomu', 350, 250, 500, {
+        krok: 10,
+        jednostka: 'mm',
+        podpowiedz: 'Nisko postawione dolne łóżko zostawia więcej miejsca nad głową śpiącego.',
+      }),
+      par.wlasny('materac', 'Grubość górnego materaca', 150, 80, 250, {
+        krok: 10,
+        jednostka: 'mm',
+        podpowiedz: 'Wchodzi do sprawdzenia barierki: im grubszy materac, tym mniej barierki zostaje ponad nim.',
+      }),
+      par.opcja('obustronna', 'Barierka z obu stron', true, 'Wyłącz tylko wtedy, gdy łóżko stoi bokiem do ściany.'),
+    ],
+    buduj: (w) => {
+      const s = warsztat()
+      const dl = w.dlugosc
+      const szer = w.szerokosc
+      const zGora = w.poziom
+      const zDol = w.dol
+      const slupB = 70
+      const ramaB = 32
+      const ramaH = 140
+      const zBarierki = zGora + WYSOKOSC_BARIERKI
+
+      const xSlup = [slupB / 2, dl - slupB / 2]
+      const ySlup = [slupB / 2, szer - slupB / 2]
+
+      // Barierka jest przedłużeniem słupka, nie doklejoną ramką — to jedyny
+      // sposób, żeby wytrzymała ciężar ciała opartego o nią przez sen.
+      s.ustaw('nogi', T(slupB, slupB))
+      for (const x of xSlup) {
+        for (const y of ySlup) {
+          s.pion({ nazwa: 'Słupek', x, y, od: 0, do: zBarierki, wkretow: 8 })
+        }
+      }
+
+      s.ustaw('rama', T(ramaB, ramaH))
+      const poziomy: Array<[number, string]> = [
+        [zDol, 'dolnej'],
+        [zGora, 'górnej'],
+      ]
+      for (const [poziom, nazwa] of poziomy) {
+        for (const y of ySlup) {
+          s.wzdluz({
+            nazwa: `Bok ramy ${nazwa}`,
+            od: 0,
+            do: dl,
+            y,
+            z: poziom - ramaH / 2,
+            obrot: 'sztorc',
+            wkretow: 8,
+          })
+        }
+        for (const x of xSlup) {
+          s.wszerz({
+            nazwa: `Poprzeczka ramy ${nazwa}`,
+            x,
+            od: 0,
+            do: szer,
+            z: poziom - ramaH / 2,
+            obrot: 'sztorc',
+            wkretow: 6,
+          })
+        }
+        s.tarcica(T(20, 45))
+        for (const y of ySlup) {
+          s.wzdluz({
+            nazwa: `Listwa oporowa stelaża ${nazwa}`,
+            od: 0,
+            do: dl,
+            y,
+            z: poziom - ramaH + 30,
+            obrot: 'sztorc',
+            wkretow: 8,
+          })
+        }
+        s.tarcica(T(ramaB, ramaH))
+      }
+
+      // Bez ukosu piętrówka kołysze się wzdłuż przy każdym obrocie śpiącego.
+      s.ustaw('stezenia', T(25, 120))
+      for (const x of xSlup) {
+        s.ukos({
+          nazwa: 'Zastrzał szczytowy',
+          start: P(x, ySlup[0], zDol + 120),
+          koniec: P(x, ySlup[1], zGora - ramaH),
+          plaszczyzna: P(0, 0, 1),
+          wkretow: 4,
+        })
+      }
+
+      s.ustaw('dno', T(20, 70))
+      for (const poziom of [zDol, zGora]) {
+        const listew = ileWRozstawie(dl - 100, 80)
+        for (const x of rownyRozstaw(50, dl - 50, listew)) {
+          s.wszerz({
+            nazwa: 'Listwa stelaża',
+            x,
+            od: 20,
+            do: szer - 20,
+            z: poziom - ramaH + 50,
+            obrot: 'plask',
+            wkretow: 4,
+          })
+        }
+      }
+
+      // Barierka: poręcz i szczebliny w rozstawie, przez który nie przejdzie
+      // głowa dziecka. Od strony drabinki zostaje przerwa na wejście.
+      s.ustaw('oparcie', T(ramaB, 90))
+      const strony = w.obustronna >= 1 ? ySlup : [ySlup[1]]
+      for (const y of strony) {
+        s.wzdluz({
+          nazwa: 'Poręcz barierki',
+          od: 0,
+          do: dl,
+          y,
+          z: zBarierki - 45,
+          obrot: 'sztorc',
+          wkretow: 6,
+        })
+        s.tarcica(T(20, 45))
+        const szczeblin = ileWRozstawie(dl - slupB, MAX_PRZESWIT_SZCZEBLIN + 45)
+        for (const x of rownyRozstaw(slupB, dl - slupB / 2, szczeblin)) {
+          s.pion({
+            nazwa: 'Szczeblina barierki',
+            x,
+            y,
+            od: zGora,
+            do: zBarierki - 90,
+            wkretow: 2,
+          })
+        }
+        s.tarcica(T(ramaB, 90))
+      }
+
+      // Szczyty też są zamknięte — ale przy tym, gdzie stoi drabinka, poręcz
+      // rozchodzi się na dwa odcinki i zostawia przejście. Wejście musi być
+      // dokładnie nad drabinką: barierka, którą trzeba przekraczać bokiem,
+      // jest groźniejsza niż jej brak.
+      const bokPorecz = (szer - SZEROKOSC_WEJSCIA) / 2
+      for (const x of xSlup) {
+        const przyDrabince = x === xSlup[1]
+        const odcinki: Array<[number, number]> = przyDrabince
+          ? [
+              [0, bokPorecz],
+              [szer - bokPorecz, szer],
+            ]
+          : [[0, szer]]
+        for (const [od, do_] of odcinki) {
+          if (do_ - od < 60) continue
+          s.wszerz({
+            nazwa: przyDrabince ? 'Poręcz szczytowa przy wejściu' : 'Poręcz szczytowa',
+            x,
+            od,
+            do: do_,
+            z: zBarierki - 45,
+            obrot: 'sztorc',
+            wkretow: 4,
+          })
+        }
+      }
+
+      // Drabinka stoi przy szczycie w nogach, wysunięta przed łóżko.
+      s.ustaw('drabina', T(32, 90))
+      const xDrabiny = dl + 55
+      const yDrabiny = [szer / 2 - 200, szer / 2 + 200]
+      for (const y of yDrabiny) {
+        // Bok drabinki sięga poręczy, a nie samego materaca: wchodząc na górę
+        // trzeba mieć się czego trzymać jeszcze wtedy, gdy stopy są na
+        // ostatnim szczeblu.
+        s.pion({ nazwa: 'Bok drabinki', x: xDrabiny, y, od: 0, do: zBarierki, wkretow: 6 })
+      }
+      s.tarcica(T(32, 70))
+      const szczebli = Math.max(3, Math.round((zGora + 100) / 260))
+      for (const z of rownyRozstaw(240, zGora + 100, szczebli)) {
+        s.wszerz({
+          nazwa: 'Szczebel drabinki',
+          x: xDrabiny,
+          od: yDrabiny[0],
+          do: yDrabiny[1],
+          z,
+          obrot: 'plask',
+          wkretow: 4,
+          uwaga: 'krawędzie mocno zaokrąglij — po tym chodzi się boso',
+        })
+      }
+      s.tarcica(T(32, 70))
+      for (const y of yDrabiny) {
+        for (const z of [zGora - 40, 300]) {
+          s.wzdluz({
+            nazwa: 'Łącznik drabinki z ramą',
+            od: dl - slupB,
+            do: xDrabiny,
+            y,
+            z,
+            obrot: 'plask',
+            wkretow: 4,
+            uwaga: 'spina bok drabinki ze słupkiem łóżka',
+          })
+        }
+      }
+
+      return s.zbior()
+    },
+    opisyEtapow: {
+      nogi: 'Cztery słupki na pełną wysokość, od podłogi po górną krawędź barierki. Barierka musi być przedłużeniem słupka — doklejona osobno do gotowej ramy urywa się dokładnie wtedy, gdy ktoś przez sen się o nią oprze.',
+      rama: 'Zbierz obie ramy i listwy oporowe. Skręcaj śrubami przelotowymi, nie wkrętami: piętrówka pracuje przy każdym ruchu, a wkręt w drewnie czołowym rozrabia sobie otwór w kilka miesięcy.',
+      stezenia: 'Zastrzały na obu szczytach. Bez ukosu łóżko kołysze się wzdłuż przy każdym obrocie śpiącego — i nie jest to wada, którą da się później dokręcić.',
+      dno: 'Listwy stelaża w rozstawie nie większym niż 8 cm w świetle, na obu poziomach. Przykręć każdą osobno, także na dole: luźna listwa górnego stelaża wypada wprost na śpiącego pod spodem.',
+      oparcie: 'Poręcz i szczebliny barierki na bokach, a na szczycie od strony drabinki przerwa na wejście. Prześwit między szczeblinami nie może przekroczyć 7,5 cm — przez większy przechodzi głowa dziecka.',
+      drabina: 'Drabinkę przykręć na stałe do ramy, u góry i u dołu. Szczeble zrób płaskie i mocno zaokrąglone: chodzi się po nich boso, często w nocy i po ciemku.',
+    },
+    ostrzezenia: (w) => {
+      const uwagi: string[] = []
+      // Jedyna liczba, która decyduje o tym, czy śpiący nie wypadnie:
+      // ile barierki zostaje NAD powierzchnią materaca.
+      const powierzchniaMateraca = w.poziom - 140 + 50 + 10 + w.materac
+      const ponadMateracem = w.poziom + WYSOKOSC_BARIERKI - powierzchniaMateraca
+      if (ponadMateracem < MIN_BARIERKA_NAD_MATERACEM) {
+        uwagi.push(
+          `Przy materacu ${Math.round(w.materac / 10)} cm barierka wystaje ponad niego tylko o ${Math.round(ponadMateracem / 10)} cm, a powinna o co najmniej ${MIN_BARIERKA_NAD_MATERACEM / 10} cm. Weź cieńszy materac albo podnieś barierkę.`,
+        )
+      }
+      return uwagi
+    },
+    laczniki: (w) => [
+      {
+        nazwa: 'Śruba przelotowa M8 z podkładkami i nakrętką',
+        sztuk: 24,
+        jednostka: 'szt.',
+        uwaga: 'ramy do słupków — łóżko musi dać się rozkręcić przy przeprowadzce',
+      },
+      { nazwa: 'Kątownik montażowy', sztuk: 8, jednostka: 'szt.' },
+      {
+        nazwa: 'Kotwa do przykręcenia łóżka do ściany',
+        sztuk: 2,
+        jednostka: 'szt.',
+        uwaga: 'obowiązkowo — piętrówka jest wysoka i wąska',
+      },
+      {
+        nazwa: 'Materac',
+        sztuk: 2,
+        jednostka: 'szt.',
+        uwaga: `${Math.round(w.dlugosc / 10)} × ${Math.round(w.szerokosc / 10)} cm`,
+      },
+    ],
+    wskazowki: [
+      'Górne łóżko nie jest dla dziecka poniżej sześciu lat. Nie chodzi o wzrost, tylko o to, że młodsze dziecko budzi się zdezorientowane i schodzi nogami w powietrze.',
+      'Przykręć łóżko do ściany. Dzieci wspinają się na górę bokiem, nie po drabince — dwa kątowniki kosztują kilka złotych i rozwiązują ten problem raz na zawsze.',
+      'Zmierz odległość od górnego materaca do sufitu, zanim dotniesz drewno. Poniżej 75 cm nie da się na górze usiąść, a to pierwsza rzecz, którą robi się po przebudzeniu.',
+      'Materac na górze bierz najcieńszy, jaki jest wygodny. Każdy centymetr materaca to centymetr mniej barierki nad nim.',
     ],
   },
 
