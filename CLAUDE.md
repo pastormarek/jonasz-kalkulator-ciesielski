@@ -3,8 +3,10 @@
 Aplikacja licząca więźbę dachową: geometria krokwi, zaciosy, naroża dachu
 kopertowego, zestawienie materiału do zakupu i model przestrzenny z instrukcją
 montażu. Druga gałąź liczy **wiaty, zadaszenia przyścienne i pergole** — słupy,
-oczepy, miecze, stopy fundamentowe i odwodnienie. Działa jako strona i jako
-aplikacja instalowana na telefonie (PWA).
+oczepy, miecze, stopy fundamentowe i odwodnienie. Trzecia to **meble ogrodowe
+i domowe do zrobienia samodzielnie**: katalog trzydziestu dwóch przepisów,
+z listą części, instrukcją montażu krok po kroku i rozpiską drewna do kupienia.
+Działa jako strona i jako aplikacja instalowana na telefonie (PWA).
 
 Odbiorcy: cieśla na budowie, osoba robiąca wycenę, klient bez wiedzy fachowej
 i uczeń zawodu. Stąd duże kontrolki, wysoki kontrast i przełącznik „Pokaż
@@ -15,7 +17,7 @@ wyjaśnienia" z wyprowadzeniem wzorów.
 ```bash
 npm run dev      # serwer deweloperski
 npm run build    # wersja produkcyjna do dist/
-npm test         # 188 testów
+npm test         # 216 testów
 python tools/formularz-docx.py    # formularz konsultacyjny, tura 1
 python tools/formularz2-docx.py   # tura 2
 ```
@@ -33,6 +35,12 @@ src/core/    obliczenia — czysty TypeScript, ZERO importów z React
   shelterMaterials.ts zestawienie wiaty, funkcja calculateShelter()
   shelterModel3d.ts   model przestrzenny wiaty w formacie modułu dachowego
   shelterPresets.ts   gotowe modele wiat, zadaszeń i pergoli do wczytania
+  furniture.ts        model danych mebla i warsztat do pisania przepisów
+  furnitureCatalog.ts scala przepisy i wydaje je reszcie aplikacji
+  furnitureSiedziska.ts, furnitureStoly.ts, furnitureOgrod.ts,
+  furniturePrzechowywanie.ts, furnitureDom.ts — same przepisy
+  furnitureMaterials.ts zestawienie i instrukcja, funkcja calculateFurniture()
+  furnitureModel3d.ts   model przestrzenny mebla
 src/ui/      interfejs, rysunki SVG, silnik 3D na płótnie
 src/pdf/     odczyt wymiarów z PDF-a
 src/state/   zapis projektów i pakowanie projektu do adresu URL
@@ -43,14 +51,16 @@ Rdzeń nie wie nic o interfejsie. Ten sam kod liczy podgląd na ekranie, wydruk,
 model 3D i testy — dzięki temu nie mogą się rozjechać. **Nie przenoś obliczeń
 do komponentów.**
 
-## Dwie gałęzie: dach i wiata
+## Trzy gałęzie: dach, wiata i meble
 
-Przełącznik w nagłówku wybiera, co liczymy. Projekt trzyma oba komplety danych
-naraz (`input` dla dachu, `shelter` dla wiaty) i pole `kind`, więc przełączenie
-niczego nie kasuje, a zapis i link działają dla obu.
+Przełącznik w nagłówku wybiera, co liczymy. Projekt trzyma wszystkie trzy
+komplety danych naraz (`input` dla dachu, `shelter` dla wiaty, `furniture` dla
+mebla) i pole `kind`, więc przełączenie niczego nie kasuje, a zapis i link
+działają dla każdej gałęzi.
 
 Zakładki dachu: Dach · Krokwie · Model · Materiał · Projekt.
 Zakładki wiaty: Wiata · Konstrukcja · Model · Materiał.
+Zakładki mebla: Mebel · Części i montaż · Model · Materiał.
 
 Wiata **korzysta z modułów dachowych tam, gdzie problem jest ten sam**: plan
 cięcia (`cutting.ts`), grupowanie po przekrojach i naddatki (`groupBySection`,
@@ -63,10 +73,31 @@ produktów. **Każdy musi liczyć się bez ostrzeżeń** — pilnuje tego test; 
 dokładaniu nowego sprawdź prześwit pod okapem, minimalny spadek dla pokrycia
 i czy najdłuższy nierozdzielny element mieści się w belce handlowej.
 
-Etapy montażu w `model3d.ts` (`ETAPY`) są **wspólne dla obu gałęzi** i ułożone
-w kolejności stawiania: stopy → murłaty → słupy → oczepy → płatwie → miecze →
-krokwie → jętki → wymiany → kontrłaty → łaty → szczebliny. Model pokazuje tylko
-te etapy, w których faktycznie coś stoi.
+Etapy montażu w `model3d.ts` (`ETAPY`) są **wspólne dla wszystkich gałęzi**
+i ułożone w kolejności stawiania: stopy → murłaty → słupy → oczepy → płatwie →
+miecze → krokwie → jętki → wymiany → kontrłaty → łaty → szczebliny, a dalej
+etapy meblowe: nogi → rama → stężenia → dno → ściany → półki → siedzisko →
+oparcie → blat → daszek. Model pokazuje tylko te etapy, w których faktycznie
+coś stoi, więc dach nigdy nie zobaczy etapów meblowych i odwrotnie.
+
+## Meble: katalog przepisów, nie parametry
+
+Dach i wiata to jedna konstrukcja z pokrętłami. Meble tak nie działają — ławka
+i budka lęgowa nie mają wspólnych parametrów poza tym, że są z drewna. Dlatego
+zamiast jednego modelu danych jest **katalog przepisów**: przepis deklaruje
+swoje parametry i układa `Czesc[]` w przestrzeni, a z tej jednej listy powstaje
+model 3D, spis części, plan cięcia i instrukcja montażu. Dołożenie mebla to
+napisanie jednej funkcji — żaden komponent ani moduł obliczeń tego nie dotyka.
+
+Przepisy pisze się **warsztatem** (`warsztat()` w `furniture.ts`): `pion`,
+`wzdluz`, `wszerz`, `ukos` i `polac`. Deski dachu układaj wyłącznie przez
+`polac` — ręczne rozkładanie poziomych desek na kilku wysokościach daje
+schodki zamiast połaci i szczeliny w pokryciu.
+
+**Każdy przepis musi liczyć się bez ostrzeżeń, także na obu krańcach swoich
+zakresów** — pilnuje tego test. Przy dokładaniu nowego sprawdź, czy żadna
+część nie wychodzi szersza niż 200 mm: tarcicy szerszej nie ma na półce,
+a powierzchnię trzeba wtedy złożyć z kilku desek.
 
 ## Konwencje
 

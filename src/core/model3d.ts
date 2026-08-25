@@ -29,6 +29,7 @@ export interface Punkt3 {
  * tak samo numerowane są kroki w instrukcji.
  */
 export const ETAPY = [
+  // --- dach i wiata: od fundamentu do pokrycia ---
   'stopy',
   'murlaty',
   'slupy',
@@ -41,6 +42,19 @@ export const ETAPY = [
   'kontrlaty',
   'laty',
   'poprzeczki',
+  // --- meble: od nog do wierzchu ---
+  // Dopisane na koncu, bo zaden mebel nie uzywa etapow dachowych i odwrotnie.
+  // Kolejnosc wewnatrz tej grupy jest kolejnoscia skrecania mebla.
+  'nogi',
+  'rama',
+  'stezenia',
+  'dno',
+  'sciany',
+  'polki',
+  'siedzisko',
+  'oparcie',
+  'blat',
+  'daszek',
 ] as const
 
 export type Etap = (typeof ETAPY)[number]
@@ -94,6 +108,50 @@ export const OPIS_ETAPU: Record<Etap, { tytul: string; opis: string }> = {
   poprzeczki: {
     tytul: 'Szczebliny',
     opis: 'Rozłóż szczebliny na wierzchu i przykręć je od góry. Rozstaw rozmierz od środka ku brzegom — wtedy ewentualna różnica rozejdzie się po obu stronach i nikt jej nie zauważy.',
+  },
+
+  // --- etapy meblowe ---
+  // To są opisy ogólne, wspólne dla całego katalogu. Konkretny mebel może je
+  // nadpisać własnym zdaniem — patrz `opisyEtapow` w przepisie.
+  nogi: {
+    tytul: 'Nogi i boki',
+    opis: 'Dotnij nogi na jednakową długość — najlepiej wszystkie naraz, z jednego ustawienia ogranicznika. Różnica dwóch milimetrów wystarczy, żeby gotowy mebel się kiwał.',
+  },
+  rama: {
+    tytul: 'Rama',
+    opis: 'Zbierz nogi ramą z poprzeczek. Skręcaj na płasko na podłodze i sprawdź przekątne — muszą być równe, inaczej mebel wyjdzie w romb i nie przylgnie do ściany.',
+  },
+  stezenia: {
+    tytul: 'Usztywnienia',
+    opis: 'Wstaw zastrzały i krzyżaki. Prostokątna rama sama z siebie składa się na bok jak nożyce; dopiero ukośne stężenie trzyma ją w kącie prostym.',
+  },
+  dno: {
+    tytul: 'Dno',
+    opis: 'Ułóż deski dna na poprzeczkach i zostaw między nimi szczeliny — woda musi mieć którędy uciec, a drewno pracować przy zmianie wilgotności.',
+  },
+  sciany: {
+    tytul: 'Ściany',
+    opis: 'Obszaluj ramę deskami, zaczynając od dołu. Pierwszą deskę ustaw poziomicą; każda następna pójdzie już po niej, a błąd z pierwszej powtórzy się na całej wysokości.',
+  },
+  polki: {
+    tytul: 'Półki',
+    opis: 'Włóż półki i przykręć je do poprzeczek. Sprawdź poziom każdej osobno — na oko wychodzą zbieżne, a widać to dopiero, gdy coś na nich stanie.',
+  },
+  siedzisko: {
+    tytul: 'Siedzisko',
+    opis: 'Przykręć deski siedziska od góry, ze szczelinami na odpływ wody. Łby wkrętów wpuść pod powierzchnię i złam krawędzie desek papierem — to jest miejsce, którego dotyka się gołą skórą.',
+  },
+  oparcie: {
+    tytul: 'Oparcie i podłokietniki',
+    opis: 'Zamocuj oparcie, a potem podłokietniki. Oparcie odchylone do tyłu siedzi się wygodniej niż pionowe, ale wtedy tym mocniej podważa tylne nogi — nie żałuj wkrętów w tym miejscu.',
+  },
+  blat: {
+    tytul: 'Blat',
+    opis: 'Ułóż deski blatu i przykręć je od spodu, przez poprzeczki. Wkręt wchodzący od góry zawsze w końcu zbierze wodę pod łbem i zacznie czernić drewno wokół siebie.',
+  },
+  daszek: {
+    tytul: 'Daszek',
+    opis: 'Nakryj konstrukcję daszkiem tak, żeby wystawał poza ściany z każdej strony. To wystawienie decyduje o tym, czy woda kapie na ziemię, czy spływa po ścianie.',
   },
 }
 
@@ -559,8 +617,13 @@ function zbudujWymiary(
   return wymiary
 }
 
-/** Osiem wierzchołków bryły belki, w kolejności: najpierw czoło początkowe. */
-export function wierzcholki(b: Belka): Punkt3[] {
+/**
+ * Osiem wierzchołków bryły belki, w kolejności: najpierw czoło początkowe.
+ *
+ * Przyjmuje belkę bez identyfikatora, żeby dało się policzyć bryłę także dla
+ * części mebla, która identyfikator dostaje dopiero przy budowaniu modelu.
+ */
+export function wierzcholki(b: Omit<Belka, 'id'>): Punkt3[] {
   const os = normalizuj(odejmij(b.koniec, b.start))
   const gora = normalizuj(ortogonalizuj(b.gora, os))
   const bok = iloczynWektorowy(os, gora)

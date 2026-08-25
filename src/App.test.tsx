@@ -389,3 +389,140 @@ describe('wiaty, zadaszenia i pergole', () => {
     expect(screen.getByRole('tab', { name: /wiata/i })).toHaveProperty('ariaSelected', 'true')
   })
 })
+
+describe('meble ogrodowe i domowe', () => {
+  /** Przełącza aplikację na gałąź mebli. */
+  async function naMeble(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: /^Meble$/ }))
+  }
+
+  it('przełącznik w nagłówku podmienia zakładki na meblowe', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await naMeble(user)
+
+    expect(screen.getByRole('tab', { name: /^Mebel$/i })).toBeDefined()
+    expect(screen.getByRole('tab', { name: /części i montaż/i })).toBeDefined()
+    expect(screen.queryByRole('tab', { name: /krokwie/i })).toBeNull()
+    expect(screen.queryByRole('tab', { name: /konstrukcja/i })).toBeNull()
+    // Startujemy od ławki — to od niej ludzie najczęściej zaczynają.
+    expect(screen.getByRole('heading', { name: /Ławka ogrodowa z oparciem/i })).toBeDefined()
+  })
+
+  it('wybór innego mebla z katalogu podmienia komplet parametrów', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await naMeble(user)
+
+    expect(screen.getByLabelText(/Wysokość oparcia/i)).toBeDefined()
+
+    await user.click(screen.getByRole('button', { name: /Ławka prosta bez oparcia/i }))
+
+    expect(screen.getByRole('heading', { name: /Ławka prosta bez oparcia/i })).toBeDefined()
+    expect(screen.queryByLabelText(/Wysokość oparcia/i)).toBeNull()
+  })
+
+  it('filtr kategorii pokazuje meble tylko z wybranego działu', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await naMeble(user)
+
+    expect(screen.getByRole('button', { name: /Ławka ogrodowa z oparciem/i })).toBeDefined()
+
+    await user.click(screen.getByRole('button', { name: /^Ogród$/ }))
+
+    expect(screen.getByRole('button', { name: /Grządka podwyższona/i })).toBeDefined()
+    expect(screen.queryByRole('button', { name: /Ławka ogrodowa z oparciem/i })).toBeNull()
+  })
+
+  it('zmiana wymiaru przelicza gabaryt gotowego mebla', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await naMeble(user)
+
+    await wpisz(user, /^Długość$/i, '2000')
+
+    expect(within(kafelek('Gotowy mebel')).getByText(/200 cm/)).toBeDefined()
+  })
+
+  it('lista części ma oznaczenia literowe, a instrukcja ponumerowane kroki', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await naMeble(user)
+    await zakladka(user, 'części i montaż')
+
+    // Pierwsza pozycja listy części dostaje literę A i wraca w instrukcji.
+    const tabela = document.querySelector('.tabela-otoczka table') as HTMLElement
+    expect(within(tabela).getAllByText('A').length).toBeGreaterThan(0)
+    expect(screen.getByText(/Krok 1:/i)).toBeDefined()
+    expect(screen.getByText(/Na koniec: szlif i wykończenie/i)).toBeDefined()
+    expect(screen.getAllByText(/Noga tylna z oparciem/i).length).toBeGreaterThan(0)
+  })
+
+  it('zestawienie mebla podaje tarcicę w metrach bieżących i wkręty', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await naMeble(user)
+    await zakladka(user, 'materiał')
+
+    expect(within(kafelek('Tarcica do kupienia')).getByText('mb')).toBeDefined()
+    expect(screen.getAllByText(/Wkręt do drewna/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Plan cięcia/i).length).toBeGreaterThan(0)
+  })
+
+  it('ostrzega, gdy ktoś wybierze świerk na mebel stojący w ziemi', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await naMeble(user)
+
+    await user.click(screen.getByRole('button', { name: /^Ogród$/ }))
+    await user.click(screen.getByRole('button', { name: /Grządka podwyższona/i }))
+    await user.selectOptions(screen.getByLabelText(/Gatunek drewna/i), 'swierk')
+    await zakladka(user, 'materiał')
+
+    expect(screen.getByText(/w kontakcie z ziemią/i)).toBeDefined()
+  })
+
+  it('model przestrzenny mebla prowadzi przez montaż od nóg', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await naMeble(user)
+    await zakladka(user, 'model')
+
+    expect(screen.getByRole('button', { name: /Gotowy mebel/i })).toBeDefined()
+    await user.click(screen.getByRole('button', { name: /Montaż krok po kroku/i }))
+    expect(screen.getAllByText(/Nogi i boki/i).length).toBeGreaterThan(0)
+  })
+
+  it('przełączanie rodzajów nie kasuje danych pozostałych gałęzi', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await wpisz(user, /Rozpiętość budynku/i, '9000')
+    await naMeble(user)
+    await wpisz(user, /^Długość$/i, '1900')
+
+    await user.click(screen.getByRole('button', { name: /^Dach$/ }))
+    expect(screen.getByLabelText(/Rozpiętość budynku/i)).toHaveProperty('value', '9000')
+
+    await naMeble(user)
+    expect(screen.getByLabelText(/^Długość$/i)).toHaveProperty('value', '1900')
+  })
+
+  it('zapisany mebel wraca z listy projektów jako mebel', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await naMeble(user)
+
+    await wpisz(user, /Nazwa projektu/i, 'Ławka na taras')
+    await user.click(screen.getByRole('button', { name: /^Zapisz$/i }))
+    await user.click(screen.getByRole('button', { name: /^Projekty$/i }))
+
+    const okno = document.querySelector('.okno') as HTMLElement
+    expect(within(okno).getByText('Ławka na taras')).toBeDefined()
+    expect(within(okno).getByText(/Ławka ogrodowa z oparciem/i)).toBeDefined()
+
+    await user.click(within(okno).getByRole('button', { name: /Otwórz/i }))
+    expect(screen.getByRole('tab', { name: /^Mebel$/i })).toHaveProperty('ariaSelected', 'true')
+  })
+})

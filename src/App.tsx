@@ -13,6 +13,10 @@ import type { ShelterInput } from './core/shelter'
 import { calculateShelter } from './core/shelterMaterials'
 import { zbudujModel } from './core/model3d'
 import { zbudujModelWiaty } from './core/shelterModel3d'
+import type { FurnitureInput } from './core/furniture'
+import { calculateFurniture } from './core/furnitureMaterials'
+import { zbudujModelMebla } from './core/furnitureModel3d'
+import { przepisDla } from './core/furnitureCatalog'
 import {
   newProject,
   loadProjects,
@@ -33,17 +37,30 @@ import { ViewModel } from './ui/ViewModel'
 import { ViewWiata } from './ui/ViewWiata'
 import { ViewKonstrukcjaWiaty } from './ui/ViewKonstrukcjaWiaty'
 import { ViewMaterialWiaty } from './ui/ViewMaterialWiaty'
+import { ViewMebel } from './ui/ViewMebel'
+import { ViewCzesci } from './ui/ViewCzesci'
+import { ViewMaterialMebla } from './ui/ViewMaterialMebla'
 import { Przelacznik } from './ui/controls'
 import { DostawcaJednostek, type Jednostka } from './ui/units'
 import { dataCzas, liczba, mNaMetry } from './ui/format'
 import { SHAPE_LABELS } from './core/defaults'
 import { SHELTER_KIND_LABELS } from './core/shelter'
 
-type Zakladka = 'dach' | 'krokwie' | 'model' | 'material' | 'projekt' | 'wiata' | 'konstrukcja'
+type Zakladka =
+  | 'dach'
+  | 'krokwie'
+  | 'model'
+  | 'material'
+  | 'projekt'
+  | 'wiata'
+  | 'konstrukcja'
+  | 'mebel'
+  | 'czesci'
 
 /**
  * Zakładki zależą od tego, co się liczy. Dach ma import wymiarów z PDF-a,
- * wiata zamiast tego osobny ekran konstrukcji ze słupami i fundamentem.
+ * wiata zamiast tego osobny ekran konstrukcji ze słupami i fundamentem,
+ * a mebel — listę części z instrukcją montażu krok po kroku.
  */
 const ZAKLADKI: Record<ProjectKind, Array<{ id: Zakladka; label: string; ikona: string }>> = {
   dach: [
@@ -59,12 +76,26 @@ const ZAKLADKI: Record<ProjectKind, Array<{ id: Zakladka; label: string; ikona: 
     { id: 'model', label: 'Model', ikona: '🏠' },
     { id: 'material', label: 'Materiał', ikona: '🪵' },
   ],
+  mebel: [
+    { id: 'mebel', label: 'Mebel', ikona: '🪑' },
+    { id: 'czesci', label: 'Części i montaż', ikona: '🔩' },
+    { id: 'model', label: 'Model', ikona: '🧊' },
+    { id: 'material', label: 'Materiał', ikona: '🪵' },
+  ],
+}
+
+/** Pierwsza zakładka po przełączeniu rodzaju — ta, na której się coś wpisuje. */
+const PIERWSZA_ZAKLADKA: Record<ProjectKind, Zakladka> = {
+  dach: 'dach',
+  wiata: 'wiata',
+  mebel: 'mebel',
 }
 
 /** Nazwy rodzajów projektu w przełączniku nagłówka. */
 const RODZAJE: Array<{ id: ProjectKind; label: string }> = [
   { id: 'dach', label: 'Dach' },
   { id: 'wiata', label: 'Wiata' },
+  { id: 'mebel', label: 'Meble' },
 ]
 
 export default function App() {
@@ -86,17 +117,20 @@ export default function App() {
   const [komunikat, setKomunikat] = useState('')
 
   const wiata = projekt.kind === 'wiata'
+  const mebel = projekt.kind === 'mebel'
   const zakladki = ZAKLADKI[projekt.kind]
 
   const wynik = useMemo(() => calculate(projekt.input), [projekt.input])
   const wynikWiaty = useMemo(() => calculateShelter(projekt.shelter), [projekt.shelter])
+  const wynikMebla = useMemo(() => calculateFurniture(projekt.furniture), [projekt.furniture])
 
   // Model przestrzenny powstaje dopiero wtedy, gdy ktoś go ogląda — przy każdej
   // zmianie wymiaru budowanie kilkuset brył byłoby czystą stratą.
   const model = useMemo(() => {
     if (zakladka !== 'model') return null
+    if (mebel) return zbudujModelMebla(wynikMebla)
     return wiata ? zbudujModelWiaty(wynikWiaty) : zbudujModel(wynik)
-  }, [zakladka, wiata, wynik, wynikWiaty])
+  }, [zakladka, wiata, mebel, wynik, wynikWiaty, wynikMebla])
 
   // Ostatni stan pamiętamy zawsze, żeby odświeżenie strony nic nie gubiło.
   useEffect(() => {
@@ -125,6 +159,9 @@ export default function App() {
   const zmienWiate = (patch: Partial<ShelterInput>) =>
     setProjekt((p) => ({ ...p, shelter: { ...p.shelter, ...patch } }))
 
+  const zmienMebel = (patch: Partial<FurnitureInput>) =>
+    setProjekt((p) => ({ ...p, furniture: { ...p.furniture, ...patch } }))
+
   /**
    * Przełączenie rodzaju nie kasuje drugiego kompletu danych — projekt trzyma
    * oba naraz, więc powrót do dachu zastaje go dokładnie tam, gdzie był.
@@ -132,7 +169,7 @@ export default function App() {
   const zmienRodzaj = (kind: ProjectKind) => {
     if (kind === projekt.kind) return
     setProjekt((p) => ({ ...p, kind }))
-    setZakladka(kind === 'wiata' ? 'wiata' : 'dach')
+    setZakladka(PIERWSZA_ZAKLADKA[kind])
   }
 
   const zapisz = () => {
@@ -143,7 +180,7 @@ export default function App() {
   const otworz = (p: Project) => {
     setProjekt(p)
     setOknoProjektow(false)
-    setZakladka(p.kind === 'wiata' ? 'wiata' : 'dach')
+    setZakladka(PIERWSZA_ZAKLADKA[p.kind])
   }
 
   const usun = (id: string) => {
@@ -179,7 +216,7 @@ export default function App() {
           value={projekt.name}
           onChange={(e) => setProjekt((p) => ({ ...p, name: e.target.value }))}
           aria-label="Nazwa projektu"
-          placeholder={wiata ? 'Nazwa wiaty' : 'Nazwa dachu'}
+          placeholder={mebel ? 'Nazwa mebla' : wiata ? 'Nazwa wiaty' : 'Nazwa dachu'}
         />
 
         <div className="naglowek-akcje">
@@ -290,16 +327,32 @@ export default function App() {
           )}
           {wiata && zakladka === 'material' && <ViewMaterialWiaty wynik={wynikWiaty} />}
 
+          {mebel && zakladka === 'mebel' && (
+            <ViewMebel input={projekt.furniture} onChange={zmienMebel} wynik={wynikMebla} />
+          )}
+          {mebel && zakladka === 'czesci' && <ViewCzesci wynik={wynikMebla} />}
+          {mebel && zakladka === 'material' && <ViewMaterialMebla wynik={wynikMebla} />}
+
           {zakladka === 'model' && model && (
             <ViewModel
               model={model}
               nazwaProjektu={projekt.name}
-              etykietaCalosci={wiata ? 'Cała wiata' : 'Cały dach'}
+              etykietaCalosci={mebel ? 'Gotowy mebel' : wiata ? 'Cała wiata' : 'Cały dach'}
               opisPlotna={
-                wiata ? 'Przestrzenny model wiaty' : 'Przestrzenny model więźby dachowej'
+                mebel
+                  ? 'Przestrzenny model mebla'
+                  : wiata
+                    ? 'Przestrzenny model wiaty'
+                    : 'Przestrzenny model więźby dachowej'
               }
               wskazowka={
-                wiata ? (
+                mebel ? (
+                  <>
+                    Tryb montażu pokazuje mebel składany krok po kroku — w tej samej
+                    kolejności co instrukcja w zakładce „Części i montaż". Oznaczenia
+                    części i długości do docięcia znajdziesz właśnie tam.
+                  </>
+                ) : wiata ? (
                   <>
                     Model pokazuje rozmieszczenie i wymiary elementów wraz ze stopami
                     fundamentowymi. Kąty cięć i sposób osadzenia słupa znajdziesz
@@ -311,7 +364,7 @@ export default function App() {
           )}
         </DostawcaJednostek>
 
-        <StopkaOdpowiedzialnosci />
+        <StopkaOdpowiedzialnosci mebel={mebel} />
       </main>
 
       {oknoProjektow && (
@@ -323,7 +376,7 @@ export default function App() {
           onNowy={(kind) => {
             setProjekt(newProject(undefined, kind))
             setOknoProjektow(false)
-            setZakladka(kind === 'wiata' ? 'wiata' : 'dach')
+            setZakladka(PIERWSZA_ZAKLADKA[kind])
           }}
           onZamknij={() => setOknoProjektow(false)}
         />
@@ -342,16 +395,40 @@ function NaglowekWydruku({ projekt }: { projekt: Project }) {
     <div style={{ display: 'none' }} className="tylko-druk">
       <h1 style={{ margin: 0, fontSize: '16pt' }}>{projekt.name}</h1>
       <p style={{ margin: '2pt 0 12pt', fontSize: '9pt' }}>
-        {opisProjektu(projekt)} · nachylenie{' '}
-        {liczba(projekt.kind === 'wiata' ? projekt.shelter.pitchDeg : projekt.input.pitchDeg, 0)}° ·
-        zestawienie z {dataCzas(new Date().toISOString())}
+        {opisProjektu(projekt)}
+        {projekt.kind !== 'mebel' && (
+          <>
+            {' · nachylenie '}
+            {liczba(
+              projekt.kind === 'wiata' ? projekt.shelter.pitchDeg : projekt.input.pitchDeg,
+              0,
+            )}
+            °
+          </>
+        )}
+        {' · zestawienie z '}
+        {dataCzas(new Date().toISOString())}
       </p>
     </div>
   )
 }
 
+/** Krótkie nazwy gatunków — do jednolinijkowego opisu projektu. */
+const GATUNEK_KROTKO: Record<string, string> = {
+  sosna: 'sosna',
+  'sosna-impregnowana': 'sosna impregnowana',
+  swierk: 'świerk',
+  modrzew: 'modrzew',
+  dab: 'dąb',
+  akacja: 'akacja',
+}
+
 /** Jednolinijkowy opis projektu — ten sam na wydruku i na liście zapisanych. */
 function opisProjektu(projekt: Project): string {
+  if (projekt.kind === 'mebel') {
+    const przepis = przepisDla(projekt.furniture.model)
+    return `${przepis.nazwa} · ${GATUNEK_KROTKO[projekt.furniture.gatunek] ?? ''}`.trim()
+  }
   if (projekt.kind === 'wiata') {
     const w = projekt.shelter
     return `${SHELTER_KIND_LABELS[w.kind].label} · ${mNaMetry(w.width)} × ${mNaMetry(w.length)} m`
@@ -361,7 +438,7 @@ function opisProjektu(projekt: Project): string {
 }
 
 /** Zastrzeżenie — kalkulator liczy geometrię, nie zastępuje konstruktora. */
-function StopkaOdpowiedzialnosci() {
+function StopkaOdpowiedzialnosci({ mebel }: { mebel: boolean }) {
   return (
     <p
       style={{
@@ -373,9 +450,21 @@ function StopkaOdpowiedzialnosci() {
         borderTop: '1px solid var(--linia)',
       }}
     >
-      Kalkulator liczy geometrię i ilości materiału na podstawie wpisanych wymiarów.
-      Nie sprawdza nośności ani przekrojów — te muszą wynikać z projektu
-      konstrukcyjnego. Przed zamówieniem drewna porównaj wyniki z rysunkami.
+      {mebel ? (
+        <>
+          Kalkulator liczy geometrię, ilości materiału i kolejność montażu. Przekroje
+          w przepisach są sprawdzone w praktyce, ale nie są wynikiem obliczeń
+          wytrzymałościowych — przy meblu, na którym ktoś usiądzie wysoko albo który
+          ma wisieć, kieruj się zdrowym rozsądkiem i nie oszczędzaj na drewnie.
+          Zmierz materac, kubeł albo psa, zanim dotniesz pierwszą deskę.
+        </>
+      ) : (
+        <>
+          Kalkulator liczy geometrię i ilości materiału na podstawie wpisanych wymiarów.
+          Nie sprawdza nośności ani przekrojów — te muszą wynikać z projektu
+          konstrukcyjnego. Przed zamówieniem drewna porównaj wyniki z rysunkami.
+        </>
+      )}
     </p>
   )
 }
@@ -402,7 +491,7 @@ function OknoProjektow({
         <h2>Zapisane projekty</h2>
         {projekty.length === 0 ? (
           <p className="pusto">
-            Nie masz jeszcze zapisanych projektów. Nadaj dachowi nazwę i naciśnij
+            Nie masz jeszcze zapisanych projektów. Nadaj projektowi nazwę i naciśnij
             „Zapisz".
           </p>
         ) : (
@@ -438,6 +527,9 @@ function OknoProjektow({
           <button type="button" className="przycisk" onClick={() => onNowy('wiata')}>
             Nowa wiata
           </button>
+          <button type="button" className="przycisk" onClick={() => onNowy('mebel')}>
+            Nowy mebel
+          </button>
           <button type="button" className="przycisk glowny" onClick={onZamknij}>
             Zamknij
           </button>
@@ -468,7 +560,7 @@ function OknoLinku({ projekt, onZamknij }: { projekt: Project; onZamknij: () => 
       <div className="okno" onClick={(e) => e.stopPropagation()}>
         <h2>Link do projektu</h2>
         <p className="podtytul">
-          Cały dach jest zapisany w samym adresie. Link nie wygasa i działa bez
+          Cały projekt jest zapisany w samym adresie. Link nie wygasa i działa bez
           logowania — kto go ma, otworzy dokładnie te obliczenia.
         </p>
         <textarea className="link-do-kopiowania" readOnly value={link} onFocus={(e) => e.target.select()} />

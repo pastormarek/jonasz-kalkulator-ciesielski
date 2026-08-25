@@ -423,6 +423,19 @@ main {
   border-color: var(--akcent);
 }
 
+/* Wybrany mebel w katalogu — na liście kilkunastu kafelków trzeba od razu
+   widzieć, który z nich jest właśnie liczony. */
+.modele button[aria-pressed='true'] {
+  border-color: var(--akcent);
+  background: var(--akcent-jasny);
+  color: var(--akcent-tekst);
+}
+
+.modele button[aria-pressed='true'] small,
+.modele button[aria-pressed='true'] .wymiar-modelu {
+  color: var(--akcent-tekst);
+}
+
 .modele button small {
   font-weight: 500;
   font-size: 11px;
