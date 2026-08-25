@@ -130,6 +130,44 @@ describe('rysowanie modelu', () => {
     expect(Math.max(...ys)).toBeGreaterThan(srodek)
   })
 
+  it('widok z dołu pokazuje konstrukcję od spodu, nie pustkę', () => {
+    const gora = WIDOKI.find((w) => w.nazwa === 'Z góry')!
+    const dol = WIDOKI.find((w) => w.nazwa === 'Z dołu')!
+
+    const zGory = atrapaPlotna()
+    rysuj(zGory.ctx, 800, 500, {
+      model,
+      kamera: { ...kamera, azymut: gora.azymut, elewacja: gora.elewacja },
+      paleta: PALETA,
+      etapyAktywne: wszystkieEtapy,
+      etapBiezacy: null,
+      pokazPoprzednie: true,
+      pokazWymiary: false,
+    })
+
+    const zDolu = atrapaPlotna()
+    rysuj(zDolu.ctx, 800, 500, {
+      model,
+      kamera: { ...kamera, azymut: dol.azymut, elewacja: dol.elewacja },
+      paleta: PALETA,
+      etapyAktywne: wszystkieEtapy,
+      etapBiezacy: null,
+      pokazPoprzednie: true,
+      pokazWymiary: false,
+    })
+
+    // Spod spodu widać tyle samo brył co z góry — zmienia się tylko to,
+    // która ściana każdej z nich jest zwrócona do obserwatora.
+    expect(zDolu.liczbaWypelnien()).toBeGreaterThan(200)
+    expect(Math.abs(zDolu.liczbaWypelnien() - zGory.liczbaWypelnien())).toBeLessThan(
+      zGory.liczbaWypelnien() * 0.25,
+    )
+    // I nadal mieści się w kadrze, zamiast uciekać za obserwatora.
+    const xs = zDolu.wierzcholki.map((w) => w.x)
+    expect(Math.min(...xs)).toBeGreaterThan(-200)
+    expect(Math.max(...xs)).toBeLessThan(1000)
+  })
+
   it('pierwszy etap montażu rysuje mniej niż cała konstrukcja', () => {
     const jeden = atrapaPlotna()
     rysuj(jeden.ctx, 800, 500, {

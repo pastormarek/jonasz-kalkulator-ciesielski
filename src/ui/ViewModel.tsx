@@ -125,8 +125,10 @@ export function ViewModel({
     setKamera((k) => ({
       ...k,
       azymut: k.azymut - dx * 0.008,
-      // Blokada tuż przed pionem: dokładnie w pionie widok traci orientację.
-      elewacja: Math.max(-0.2, Math.min(1.5, k.elewacja + dy * 0.006)),
+      // Blokada tuż przed pionem — w obie strony. Dokładnie w pionie widok
+      // traci orientację, ale poza tym obrót jest symetryczny: pod model
+      // trzeba dać się podejrzeć, bo tam wypada większość połączeń.
+      elewacja: Math.max(-1.5, Math.min(1.5, k.elewacja + dy * 0.006)),
     }))
   }
 

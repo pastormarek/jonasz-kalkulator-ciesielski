@@ -43,6 +43,9 @@ export const WIDOKI: Array<{ nazwa: string; azymut: number; elewacja: number }> 
   { nazwa: 'Z przodu', azymut: 0, elewacja: 0.12 },
   { nazwa: 'Z boku', azymut: -Math.PI / 2, elewacja: 0.12 },
   { nazwa: 'Z góry', azymut: -Math.PI / 2, elewacja: 1.45 },
+  // Spód bywa najważniejszy: blat i siedzisko przykręca się od dołu, a przy
+  // dachu tak właśnie widzi się więźbę, stojąc pod nią na poddaszu.
+  { nazwa: 'Z dołu', azymut: -Math.PI / 2, elewacja: -1.45 },
 ]
 
 /** Punkt po rzutowaniu: położenie na ekranie i odległość od obserwatora. */
