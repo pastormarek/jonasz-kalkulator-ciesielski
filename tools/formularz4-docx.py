@@ -38,7 +38,11 @@ ZMIENIONE = [
     ("Długość krokwi", "do osi kalenicy", "przy zakładce dłuższa o h ÷ sin 2α"),
     ("Deska podrynnowa", "nieliczona", "osobne pole wysokości, w zestawieniu z 15% naddatku"),
     ("Cięcie przy okapie", "brak", "pionowe, 2 cm niżej niż wysokość deski"),
-    ("Model 3D", "krokwie kończyły się w osi", "przy zakładce mijają się w kalenicy"),
+    ("Łaty na modelu", "rysowane zawsze", "domyślnie ukryte, do włączenia jednym kliknięciem"),
+    ("Struktura drewna", "płaskie kolory", "słoje wzdłuż włókna na każdej belce"),
+    ("Pokrycie na wizualizacji", "nie było", "siedem kolorów, włączane przełącznikiem"),
+    ("Blacha trapezowa", "tylko przy wiacie", "także w pokryciach dachu"),
+    ("Wybór kształtu i działu", "same napisy", "rysunek przy każdej pozycji"),
     ("Meble", "nie było", "katalog 33 projektów z instrukcją montażu"),
 ]
 
@@ -175,17 +179,17 @@ SEKCJE = [
             ),
             (
                 102,
-                "Pokrycia na wizualizacji.",
-                "Które materiały są realnie potrzebne do podglądu: dachówka ceramiczna, "
-                "betonowa, blachodachówka, blacha trapezowa, blacha na rąbek, gont? "
-                "I jakie kolory najczęściej wybierają klienci?",
+                "Kolory pokrycia.",
+                "Dołożyliśmy siedem: ceglasty, ciemna czerwień, brąz, grafit, antracyt, "
+                "zieleń i srebrny. Czy to są te, o które chodziło, czy klienci pytają "
+                "o konkretne odcienie z palety producenta?",
             ),
             (
                 103,
-                "Łaty na modelu.",
-                "Napisałeś, żeby ich nie rysować. Usunąć je z rysunku zupełnie, czy "
-                "zostawić możliwość włączenia — na wypadek, gdyby ktoś chciał zobaczyć "
-                "rozstaw?",
+                "Łaty na modelu — czy tak jest dobrze.",
+                "Schowaliśmy je domyślnie, ale zostawiliśmy przełącznik dla kogoś, kto "
+                "chce zobaczyć rozstaw. W trybie montażu krok z łatami został, bo bez "
+                "niego nie widać, co się przybija. Czy to jest to, o co Ci chodziło?",
             ),
             (
                 104,
@@ -201,6 +205,27 @@ SEKCJE = [
                 "A4 czy A3? I czy rysunek ma być w skali, czy wystarczy, że wymiary są "
                 "opisane liczbami?",
             ),
+            (
+                106,
+                "Czy pokrycie ma mieć fakturę.",
+                "Dziś połać jest gładką płaszczyzną w wybranym kolorze. Czy warto "
+                "pokazywać rysunek materiału — fale blachy trapezowej, rzędy dachówek — "
+                "czy sam kolor wystarcza, żeby klient zobaczył efekt?",
+            ),
+            (
+                107,
+                "Czy struktura drewna jest wystarczająca.",
+                "Belki mają teraz słoje biegnące wzdłuż włókna. Czy o taką strukturę "
+                "drewna chodziło, czy oczekujesz czegoś bliższego zdjęciu — z sękami "
+                "i kolorem konkretnego gatunku?",
+            ),
+            (
+                108,
+                "Czy rysunki przy wyborze są czytelne.",
+                "Przy kształcie dachu, rodzaju wiaty i dziale mebli jest teraz mały "
+                "piktogram. Czy są zrozumiałe na pierwszy rzut oka i czy przydałyby się "
+                "gdzieś jeszcze?",
+            ),
         ],
     ),
     (
@@ -212,19 +237,19 @@ SEKCJE = [
         "najpierw.",
         [
             (
-                106,
+                109,
                 "Od czego zacząć.",
                 "Które meble z tej listy są najczęściej robione i od których zacząć "
                 "dopracowywanie detali?",
             ),
             (
-                107,
+                110,
                 "Jakie złącza w meblach ogrodowych.",
                 "Liczymy dziś wszystko na wkręty. Czy w meblach, które robisz, idą kołki, "
                 "czopy albo śruby — a jeśli tak, to gdzie?",
             ),
             (
-                108,
+                111,
                 "Czego brakuje w opisie mebla.",
                 "Co powinno się znaleźć obok listy części i instrukcji, żeby majsterkowicz "
                 "faktycznie to zrobił: rysunek złącza, kolejność cięcia, szablon "
@@ -241,9 +266,9 @@ def zbuduj():
     naglowek(dok, "Kalkulator ciesielski — czwarta tura pytań", 20, przed=0, po=6)
     akapit(
         dok,
-        "Dzięki za wytyczne i rysunki. Zakładka w kalenicy i deska podrynnowa są już "
-        "policzone i działają — poniżej najpierw krótko, co się przez to zmieniło, "
-        "a potem pytania.",
+        "Dzięki za wytyczne i rysunki. Większość z nich jest już wdrożona i działa na "
+        "stronie — poniżej najpierw krótko, co się zmieniło, a potem pytania o to, "
+        "czego z samego opisu nie dało się rozstrzygnąć.",
         11,
         po=14,
     )
