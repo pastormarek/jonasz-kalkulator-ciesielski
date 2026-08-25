@@ -118,6 +118,14 @@ a powierzchnię trzeba wtedy złożyć z kilku desek.
 
 ## Uwagi, które łatwo przeoczyć
 
+- **Model 3D sprawdzaj okiem, nie tylko testem.** Wyeksportuj bryły do JSON
+  krótkim testem, narysuj je Pythonem z PIL do PNG i obejrzyj narzędziem Read.
+  Ta droga wyłapała rzeczy, których nie widać ani w kodzie, ani w asercjach:
+  deski daszku układane schodkami zamiast w płaszczyźnie połaci, półki
+  kwietnika cofnięte w złą stronę, barierkę zamykającą wejście na drabinkę.
+  Uwaga: prosty renderer sortujący ściany po średniej głębokości potrafi
+  pokazać artefakty przy przenikających się bryłach — zanim uznasz coś za błąd,
+  sprawdź liczby.
 - **Heredoc w bashu wykłada się na apostrofach** (np. `35°16'`). Do plików
   źródłowych używaj narzędzia Write albo skryptu Pythona.
 - **`git push` przez zwykły helper zawiesza się** na uwierzytelnianiu. Działa:
