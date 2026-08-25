@@ -169,3 +169,29 @@ describe('model przestrzenny', () => {
     expect(duzy.belki.length).toBeGreaterThan(maly.belki.length)
   })
 })
+
+describe('połacie pokrycia', () => {
+  it('dach dwuspadowy ma dwie połacie, pulpitowy jedną, kopertowy cztery', () => {
+    expect(zbudujModel(calculate(defaultInput())).polacie).toHaveLength(2)
+    expect(zbudujModel(calculate({ ...defaultInput(), shape: 'shed' })).polacie).toHaveLength(1)
+    expect(zbudujModel(calculate({ ...defaultInput(), shape: 'hip' })).polacie).toHaveLength(4)
+  })
+
+  it('połać leży nad krokwiami, a nie w nich', () => {
+    const w = calculate(defaultInput())
+    const model = zbudujModel(w)
+    const kalenicaKrokwi = Math.max(...model.belki.filter((b) => b.etap === 'krokwie').map((b) => b.koniec.z))
+    const kalenicaPolaci = Math.max(...model.polacie!.flatMap((p) => p.rogi.map((r) => r.z)))
+
+    // Pokrycie idzie ponad osią krokwi o pół jej wysokości plus łacenie.
+    expect(kalenicaPolaci).toBeGreaterThan(kalenicaKrokwi)
+    expect(kalenicaPolaci - kalenicaKrokwi).toBeLessThan(300)
+  })
+
+  it('połacie sięgają poza okap, tak jak pokrycie na budowie', () => {
+    const input = defaultInput()
+    const model = zbudujModel(calculate(input))
+    const najnizszy = Math.min(...model.polacie!.flatMap((p) => p.rogi.map((r) => r.y)))
+    expect(najnizszy).toBeLessThan(-input.eaves + 1)
+  })
+})

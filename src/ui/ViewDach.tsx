@@ -27,6 +27,7 @@ import {
 } from './controls'
 import { degToPercent, percentToDeg, ridgeJoint } from '../core/geometry'
 import { liczba, mm } from './format'
+import { IKONY_KSZTALTU_DACHU, IKONY_KALENICY } from './ikony'
 
 export function ViewDach({
   input,
@@ -54,9 +55,24 @@ export function ViewDach({
           value={input.shape}
           onChange={(shape) => onChange({ shape })}
           opcje={[
-            { value: 'gable', label: SHAPE_LABELS.gable, opis: 'dwie połacie, kalenica' },
-            { value: 'shed', label: SHAPE_LABELS.shed, opis: 'jedna połać' },
-            { value: 'hip', label: SHAPE_LABELS.hip, opis: 'cztery połacie, krożyny' },
+            {
+              value: 'gable',
+              label: SHAPE_LABELS.gable,
+              opis: 'dwie połacie, kalenica',
+              ikona: <IkonaKsztaltu ksztalt="gable" />,
+            },
+            {
+              value: 'shed',
+              label: SHAPE_LABELS.shed,
+              opis: 'jedna połać',
+              ikona: <IkonaKsztaltu ksztalt="shed" />,
+            },
+            {
+              value: 'hip',
+              label: SHAPE_LABELS.hip,
+              opis: 'cztery połacie, krożyny',
+              ikona: <IkonaKsztaltu ksztalt="hip" />,
+            },
           ]}
         />
         <div className="odstep" />
@@ -193,11 +209,13 @@ export function ViewDach({
               value: 'czolowe',
               label: 'Cięcie czołowe',
               opis: 'krokwie ścięte pionowo, na styk w osi',
+              ikona: <IkonaKalenicy rodzaj="czolowe" />,
             },
             {
               value: 'zakladka',
               label: 'Zakładka ciesielska',
               opis: 'krokwie mijają się, wybrane na pół grubości',
+              ikona: <IkonaKalenicy rodzaj="zakladka" />,
             },
           ]}
         />
@@ -614,4 +632,16 @@ function PodpowiedzPrzekroju() {
   return (
     <>Typowe: {COMMON_SECTIONS.slice(4, 9).map((s) => `${s.b}×${s.h}`).join(', ')} mm.</>
   )
+}
+
+/** Piktogram złącza w kalenicy — dobierany po rodzaju. */
+function IkonaKalenicy({ rodzaj }: { rodzaj: string }) {
+  const Rysunek = IKONY_KALENICY[rodzaj]
+  return Rysunek ? <>{Rysunek()}</> : null
+}
+
+/** Piktogram kształtu dachu. */
+function IkonaKsztaltu({ ksztalt }: { ksztalt: string }) {
+  const Rysunek = IKONY_KSZTALTU_DACHU[ksztalt]
+  return Rysunek ? <>{Rysunek()}</> : null
 }

@@ -71,6 +71,7 @@ export type Covering =
   | 'dachowka-ceramiczna'
   | 'dachowka-betonowa'
   | 'blachodachowka'
+  | 'blacha-trapezowa'
   | 'blacha-na-rabek'
   | 'gont-bitumiczny'
   | 'inne'

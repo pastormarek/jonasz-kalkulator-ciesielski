@@ -33,6 +33,29 @@ import { Karta, Komunikat } from './controls'
 import { liczba, odmiana } from './format'
 import { useDlugosc } from './units'
 
+/**
+ * Warstwa łacenia — to ją chowamy w widoku całości. W trybie montażu zostaje,
+ * bo tam jest osobnym krokiem i trzeba zobaczyć, co się przybija.
+ */
+const WARSTWA_LACENIA = ['laty', 'kontrlaty']
+
+/**
+ * Kolory pokryć spotykane na dachach w Polsce.
+ *
+ * To nie jest paleta producenta, tylko tyle odcieni, żeby klient zobaczył
+ * różnicę między dachem ceglastym a grafitowym — o to prosił cieśla,
+ * pisząc o pokryciu „w wielu kolorach".
+ */
+const KOLORY_POKRYCIA: Array<{ nazwa: string; hex: string }> = [
+  { nazwa: 'Ceglasty', hex: '#a8452b' },
+  { nazwa: 'Ciemna czerwień', hex: '#7b2f27' },
+  { nazwa: 'Brąz', hex: '#5d3b25' },
+  { nazwa: 'Grafit', hex: '#404751' },
+  { nazwa: 'Antracyt', hex: '#2b3037' },
+  { nazwa: 'Zieleń', hex: '#314a3b' },
+  { nazwa: 'Srebrny', hex: '#98a1a9' },
+]
+
 export function ViewModel({
   model,
   nazwaProjektu,
@@ -56,6 +79,15 @@ export function ViewModel({
   const [krok, setKrok] = useState(0)
   const [pokazWymiary, setPokazWymiary] = useState(true)
   const [pokazPoprzednie, setPokazPoprzednie] = useState(true)
+  // Cieśla poprosił wprost, żeby nie rysować łat na konstrukcji: zasłaniają
+  // to, co się ogląda, a jak wygląda łata, każdy wie. Zostają w zestawieniu
+  // materiału i w instrukcji montażu — znikają tylko z widoku całości.
+  const [pokazLacenie, setPokazLacenie] = useState(false)
+  // Pokrycie jest wyłączone na starcie: pierwsze, po co się tu wchodzi, to
+  // obejrzeć więźbę. Kolor trzymamy nawet po wyłączeniu, żeby powrót nie
+  // wymagał wybierania go od nowa.
+  const [pokazPokrycie, setPokazPokrycie] = useState(false)
+  const [kolorPokrycia, setKolorPokrycia] = useState(KOLORY_POKRYCIA[0].hex)
   const [wskazana, setWskazana] = useState<Belka | null>(null)
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -73,9 +105,22 @@ export function ViewModel({
     tryb === 'montaz' ? (etapyObecne[krok]?.etap ?? null) : null
 
   const etapyAktywne = useMemo(() => {
-    if (tryb === 'calosc') return new Set<string>(ETAPY)
-    return new Set<string>(etapyObecne.slice(0, krok + 1).map((e) => e.etap))
-  }, [tryb, krok, etapyObecne])
+    if (tryb !== 'calosc') {
+      return new Set<string>(etapyObecne.slice(0, krok + 1).map((e) => e.etap))
+    }
+    const zbior = new Set<string>(ETAPY)
+    if (!pokazLacenie) for (const e of WARSTWA_LACENIA) zbior.delete(e)
+    return zbior
+  }, [tryb, krok, etapyObecne, pokazLacenie])
+
+  /** Mebel nie ma połaci, więc i wyboru pokrycia nie pokazujemy. */
+  const maPokrycie = (model.polacie?.length ?? 0) > 0
+
+  /** Czy w tej konstrukcji łacenie w ogóle występuje — mebel go nie ma. */
+  const maLacenie = useMemo(
+    () => model.belki.some((b) => WARSTWA_LACENIA.includes(b.etap)),
+    [model],
+  )
 
   const rysujScene = useCallback(() => {
     const canvas = canvasRef.current
@@ -103,8 +148,19 @@ export function ViewModel({
       etapBiezacy,
       pokazPoprzednie: tryb === 'calosc' || pokazPoprzednie,
       pokazWymiary,
+      pokrycie: pokazPokrycie ? kolorPokrycia : null,
     })
-  }, [model, kamera, etapyAktywne, etapBiezacy, tryb, pokazPoprzednie, pokazWymiary])
+  }, [
+    model,
+    kamera,
+    etapyAktywne,
+    etapBiezacy,
+    tryb,
+    pokazPoprzednie,
+    pokazWymiary,
+    pokazPokrycie,
+    kolorPokrycia,
+  ])
 
   useEffect(() => {
     rysujScene()
@@ -273,6 +329,35 @@ export function ViewModel({
           </div>
         </div>
 
+        {maPokrycie && pokazPokrycie && (
+          <div className="rzad" style={{ marginTop: 12, gap: 8, alignItems: 'center' }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tekst-slaby)' }}>
+              Kolor:
+            </span>
+            {KOLORY_POKRYCIA.map((k) => (
+              <button
+                key={k.hex}
+                type="button"
+                title={k.nazwa}
+                aria-label={`Kolor pokrycia: ${k.nazwa}`}
+                aria-pressed={kolorPokrycia === k.hex}
+                onClick={() => setKolorPokrycia(k.hex)}
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  background: k.hex,
+                  border:
+                    kolorPokrycia === k.hex
+                      ? '3px solid var(--akcent)'
+                      : '1px solid var(--linia)',
+                }}
+              />
+            ))}
+          </div>
+        )}
+
         <div className="rzad" style={{ marginTop: 12, gap: 20 }}>
           <label className="przelacznik" style={{ minHeight: 40 }}>
             <input
@@ -284,6 +369,32 @@ export function ViewModel({
               <strong>Wymiary</strong>
             </span>
           </label>
+          {maPokrycie && (
+            <label className="przelacznik" style={{ minHeight: 40 }}>
+              <input
+                type="checkbox"
+                checked={pokazPokrycie}
+                onChange={(e) => setPokazPokrycie(e.target.checked)}
+              />
+              <span className="przelacznik-opis">
+                <strong>Pokrycie</strong>
+                <span>jak dach będzie wyglądał</span>
+              </span>
+            </label>
+          )}
+          {tryb === 'calosc' && maLacenie && (
+            <label className="przelacznik" style={{ minHeight: 40 }}>
+              <input
+                type="checkbox"
+                checked={pokazLacenie}
+                onChange={(e) => setPokazLacenie(e.target.checked)}
+              />
+              <span className="przelacznik-opis">
+                <strong>Łaty i kontrłaty</strong>
+                <span>domyślnie ukryte, żeby było widać więźbę</span>
+              </span>
+            </label>
+          )}
           {tryb === 'montaz' && (
             <label className="przelacznik" style={{ minHeight: 40 }}>
               <input

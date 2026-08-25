@@ -144,6 +144,12 @@ export interface OpcjeRysowania {
   pokazPoprzednie: boolean
   /** Czy rysować linie wymiarowe. */
   pokazWymiary: boolean
+  /**
+   * Kolor pokrycia dachu albo null, gdy pokrycia nie pokazujemy.
+   * Połacie rysujemy razem z belkami, w tej samej kolejności głębokości —
+   * inaczej dach albo zasłaniałby całą więźbę, albo znikał pod nią.
+   */
+  pokrycie?: string | null
 }
 
 /** Ściana przygotowana do narysowania. */
@@ -152,6 +158,8 @@ interface SciannaDoRysowania {
   glebia: number
   wypelnienie: string
   obrys: string
+  /** Czy na tej ścianie kreślimy słoje. */
+  sloje: boolean
 }
 
 /**
@@ -203,6 +211,27 @@ export function rysuj(
           : aktywna
             ? paleta.krawedz
             : paleta.przyciemnioneKrawedz,
+        // Słoje rysujemy tylko na drewnie, które jest „na scenie". Element
+        // przygaszony jako tło ma zostać tłem, a nie przyciągać wzrok fakturą.
+        sloje: aktywna,
+      })
+    }
+  }
+
+  if (opcje.pokrycie && model.polacie) {
+    for (const polac of model.polacie) {
+      const rzutowane = polac.rogi.map(widok.rzutuj)
+      if (rzutowane.some((punkt) => !punkt.widoczny)) continue
+
+      // Połać oglądamy i z góry, i od spodu, więc nie odrzucamy jej po
+      // zwrocie — inaczej znikałaby przy widoku spod dachu.
+      const jasnosc = oswietlenie(polac.rogi, [0, 1, 2, 3], widok)
+      doRysowania.push({
+        punkty: rzutowane,
+        glebia: rzutowane.reduce((suma, punkt) => suma + punkt.glebia, 0) / 4,
+        wypelnienie: przyciemnij(opcje.pokrycie, jasnosc),
+        obrys: przyciemnij(opcje.pokrycie, jasnosc * 0.7),
+        sloje: false,
       })
     }
   }
@@ -217,6 +246,7 @@ export function rysuj(
     ctx.closePath()
     ctx.fillStyle = s.wypelnienie
     ctx.fill()
+    if (s.sloje) rysujSloje(ctx, s.punkty, paleta.krawedz)
     ctx.strokeStyle = s.obrys
     ctx.lineWidth = 0.6
     ctx.stroke()
@@ -267,6 +297,73 @@ function oswietlenie(rogi: Punkt3[], sciana: number[], widok: Widok): number {
   void widok
   // Przenosimy zakres z [-1, 1] na [0.45, 1], żeby nic nie było zupełnie czarne.
   return 0.45 + 0.55 * Math.abs(iloczyn)
+}
+
+/**
+ * Kreśli słoje na ścianie belki.
+ *
+ * Cieśla poprosił, żeby wizualizacje były „w strukturze drewna". Pełnej
+ * tekstury na płótnie nie ma po co malować — wystarczy kilka linii wzdłuż
+ * włókien, żeby bryła przestała wyglądać jak klocek, a zaczęła jak deska.
+ *
+ * Linie prowadzimy wzdłuż DŁUŻSZEJ pary krawędzi, bo tak biegnie włókno
+ * w każdym elemencie ciosanym z belki. Ich liczba zależy od tego, jak szeroka
+ * jest ściana na ekranie: przy małym powiększeniu kilka kresek zlałoby się
+ * w jedną plamę i tylko zabrudziło rysunek.
+ */
+function rysujSloje(
+  ctx: CanvasRenderingContext2D,
+  punkty: Array<{ x: number; y: number }>,
+  kolor: string,
+): void {
+  if (punkty.length < 4) return
+
+  const [a, b, c, d] = punkty
+  const bokAB = Math.hypot(b.x - a.x, b.y - a.y)
+  const bokBC = Math.hypot(c.x - b.x, c.y - b.y)
+
+  // Wzdłuż dłuższego boku biegnie włókno; w poprzek rozkładamy kolejne słoje.
+  const wzdluzAB = bokAB >= bokBC
+  const poprzek = wzdluzAB ? bokBC : bokAB
+  const dlugosc = wzdluzAB ? bokAB : bokBC
+  if (poprzek < 5 || dlugosc < 12) return
+
+  const ile = Math.max(1, Math.min(5, Math.round(poprzek / 7) - 1))
+  if (ile < 1) return
+
+  // Para krawędzi, między którymi interpolujemy.
+  const [od1, do1, od2, do2] = wzdluzAB ? [a, b, d, c] : [b, c, a, d]
+
+  ctx.save()
+  ctx.clip()
+  ctx.strokeStyle = kolor
+  ctx.globalAlpha = 0.16
+  ctx.lineWidth = 0.8
+  for (let i = 1; i <= ile; i++) {
+    const t = i / (ile + 1)
+    ctx.beginPath()
+    ctx.moveTo(od1.x + (od2.x - od1.x) * t, od1.y + (od2.y - od1.y) * t)
+    ctx.lineTo(do1.x + (do2.x - do1.x) * t, do1.y + (do2.y - do1.y) * t)
+    ctx.stroke()
+  }
+  ctx.restore()
+}
+
+/**
+ * Przyciemnia kolor pokrycia wprost proporcjonalnie do oświetlenia ściany.
+ *
+ * Drewno ma gotową paletę trzech odcieni, ale pokrycie użytkownik wybiera
+ * sam — więc odcienie trzeba wyliczyć z jednego koloru. Mnożenie składowych
+ * wystarcza: przy zakresie jasności od 0,45 do 1 połacie różnią się na tyle,
+ * żeby było widać, która jest w słońcu.
+ */
+function przyciemnij(hex: string, wspolczynnik: number): string {
+  const czysty = hex.replace('#', '')
+  if (czysty.length !== 6) return hex
+  const w = Math.max(0, Math.min(1, wspolczynnik))
+  const skladowa = (od: number): number =>
+    Math.round(parseInt(czysty.slice(od, od + 2), 16) * w)
+  return `rgb(${skladowa(0)}, ${skladowa(2)}, ${skladowa(4)})`
 }
 
 /** Dobiera kolor ściany do jej jasności i stanu montażu. */

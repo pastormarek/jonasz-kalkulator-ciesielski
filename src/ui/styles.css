@@ -449,6 +449,35 @@ main {
   color: var(--akcent);
 }
 
+/* Kafelek z rysunkiem: ikona nad podpisem, wyśrodkowana. */
+.wybor.z-ikonami button {
+  align-items: center;
+  text-align: center;
+  padding-top: 10px;
+}
+
+.ikona-wyboru {
+  display: block;
+  color: var(--tekst-slaby);
+  margin-bottom: 2px;
+}
+
+.wybor button[aria-pressed='true'] .ikona-wyboru {
+  color: var(--akcent-tekst);
+}
+
+/* Dział katalogu mebli: mały rysunek przed nazwą, w jednej linii. */
+.ikona-dzialu {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 6px;
+}
+
+.ikona-dzialu svg {
+  width: 30px;
+  height: 20px;
+}
+
 .wybor button small {
   font-weight: 500;
   font-size: 11px;

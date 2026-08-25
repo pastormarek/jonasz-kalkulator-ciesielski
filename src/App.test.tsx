@@ -591,3 +591,61 @@ describe('kalenica i deska podrynnowa', () => {
     expect(screen.queryByText(/Deska podrynnowa/i)).toBeNull()
   })
 })
+
+describe('wytyczne z trzeciej tury', () => {
+  it('blacha trapezowa jest do wyboru jako pokrycie dachu', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    const pole = screen.getByLabelText(/Rodzaj pokrycia/i) as HTMLSelectElement
+    await user.selectOptions(pole, 'blacha-trapezowa')
+
+    expect(pole.value).toBe('blacha-trapezowa')
+    // Rozstaw łat przestawia się na właściwy dla tego pokrycia.
+    expect(screen.getByText(/im niższa fala, tym gęściej/i)).toBeDefined()
+  })
+
+  it('łaty są domyślnie ukryte na modelu, ale da się je pokazać', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await zakladka(user, 'model')
+
+    const przelacznik = screen.getByLabelText(/Łaty i kontrłaty/i)
+    expect((przelacznik as HTMLInputElement).checked).toBe(false)
+
+    await user.click(przelacznik)
+    expect((przelacznik as HTMLInputElement).checked).toBe(true)
+  })
+
+  it('pokrycie na wizualizacji można włączyć i wybrać mu kolor', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await zakladka(user, 'model')
+
+    // Dopóki pokrycie jest wyłączone, kolorów nie ma po co pokazywać.
+    expect(screen.queryByLabelText(/Kolor pokrycia/i)).toBeNull()
+
+    await user.click(screen.getByLabelText(/^Pokrycie/i))
+    const kolory = screen.getAllByLabelText(/Kolor pokrycia:/i)
+    expect(kolory.length).toBeGreaterThan(3)
+
+    await user.click(kolory[3])
+    expect(kolory[3].getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('wybór kształtu dachu ma rysunki, nie tylko napisy', () => {
+    render(<App />)
+    const kafelek = screen.getByRole('button', { name: /Kopertowy/i })
+    expect(kafelek.querySelector('svg')).not.toBeNull()
+  })
+
+  it('mebel nie dostaje wyboru pokrycia ani łat', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: /^Meble$/ }))
+    await zakladka(user, 'model')
+
+    expect(screen.queryByLabelText(/^Pokrycie/i)).toBeNull()
+    expect(screen.queryByLabelText(/Łaty i kontrłaty/i)).toBeNull()
+  })
+})

@@ -41,6 +41,7 @@ function atrapaPlotna() {
     fill: () => {
       wypelnienia++
     },
+    clip: () => {},
     stroke: () => {},
     save: () => {},
     restore: () => {},

@@ -186,9 +186,24 @@ export interface Wymiar3 {
   odsuniecie: Punkt3
 }
 
+/**
+ * Płaszczyzna pokrycia — jedna połać dachu.
+ *
+ * Nie jest belką i nie ma przekroju: to czworokąt naciągnięty nad krokwiami,
+ * służący wyłącznie do pokazania, jak dach będzie wyglądał po pokryciu.
+ * Do zestawienia materiału nie wchodzi — tam pokrycie liczy się w metrach
+ * kwadratowych połaci.
+ */
+export interface PolacPokrycia {
+  nazwa: string
+  rogi: [Punkt3, Punkt3, Punkt3, Punkt3]
+}
+
 /** Kompletny model przestrzenny dachu. */
 export interface Model3D {
   belki: Belka[]
+  /** Połacie pokrycia — puste tam, gdzie pokrycia nie ma (pergola, mebel). */
+  polacie?: PolacPokrycia[]
   wymiary: Wymiar3[]
   /** Środek bryły — punkt, wokół którego obraca się widok. */
   srodek: Punkt3
@@ -347,10 +362,13 @@ export function zbudujModel(w: Calculation): Model3D {
   // Kontrłaty i łaty trzeba jeszcze podnieść ponad krokwie.
   podniesWarstwy(belki, input.rafterSection.h, input.counterBattenSection.h)
 
+  const polacie = zbudujPolacie(w, span, dlugosc, rise, a, eaves, kalenicaY, isShed, isHip)
+
   const wymiary = zbudujWymiary(w, span, dlugosc, rise, kalenicaY)
 
   return {
     belki,
+    polacie,
     wymiary,
     srodek: p3(dlugosc / 2, span / 2, rise / 2),
     promien: Math.max(dlugosc, span, rise) * 0.75 + eaves,
@@ -642,6 +660,97 @@ function zbudujWymiary(
  * Przyjmuje belkę bez identyfikatora, żeby dało się policzyć bryłę także dla
  * części mebla, która identyfikator dostaje dopiero przy budowaniu modelu.
  */
+/**
+ * Naciąga płaszczyzny pokrycia nad krokwiami.
+ *
+ * Połać leży wyżej niż oś krokwi: o połowę jej wysokości (bo oś biegnie
+ * środkiem przekroju) plus grubość kontrłaty i łaty. Bez tego podniesienia
+ * pokrycie przecinałoby krokwie w połowie i rysunek robiłby się nieczytelny.
+ *
+ * Dach kopertowy dostaje cztery płaszczyzny: dwie wzdłuż i dwa skosy
+ * szczytowe. Skos zapisujemy jako czworokąt z powtórzonym wierzchołkiem —
+ * dzięki temu rysowanie nie musi znać dwóch przypadków.
+ */
+function zbudujPolacie(
+  w: Calculation,
+  span: number,
+  dlugosc: number,
+  rise: number,
+  a: number,
+  eaves: number,
+  kalenicaY: number,
+  isShed: boolean,
+  isHip: boolean,
+): PolacPokrycia[] {
+  const { input } = w
+  const ponadOsia = input.rafterSection.h / 2 + GRUBOSC_LACENIA
+  const sin = Math.sin(a)
+  const cos = Math.cos(a)
+  const zOkapu = -eaves * Math.tan(a)
+  const wysuniecie = isHip ? eaves : input.gableOverhang
+
+  /**
+   * Przesuwa punkt z osi krokwi na wierzch łacenia.
+   *
+   * Kierunek podniesienia jest prostopadły DO TEJ połaci, na której punkt
+   * leży — inaczej skosy koperty wychodziłyby przekrzywione, bo spadają
+   * wzdłuż innej osi niż połacie wzdłużne.
+   */
+  const naWierzch = (x: number, y: number, z: number, normalna: Punkt3): Punkt3 =>
+    p3(x + normalna.x * ponadOsia, y + normalna.y * ponadOsia, z + normalna.z * ponadOsia)
+
+  const polacie: PolacPokrycia[] = []
+  const kierunki: Array<1 | -1> = isShed ? [1] : [1, -1]
+
+  for (const znak of kierunki) {
+    const yOparcia = znak === 1 ? 0 : span
+    const yOkap = yOparcia - znak * eaves
+    const n = p3(0, -znak * sin, cos)
+
+    // Przy kopercie połać wzdłużna jest trapezem: przy okapie biegnie przez
+    // całą długość budynku, a u góry kończy się na krótszej kalenicy.
+    const okapOd = isHip ? -eaves : -wysuniecie
+    const okapDo = isHip ? dlugosc + eaves : dlugosc + wysuniecie
+    const kalenicaOd = isHip ? span / 2 : -wysuniecie
+    const kalenicaDo = isHip ? dlugosc - span / 2 : dlugosc + wysuniecie
+
+    polacie.push({
+      nazwa: znak === 1 ? 'Połać przednia' : 'Połać tylna',
+      rogi: [
+        naWierzch(okapOd, yOkap, zOkapu, n),
+        naWierzch(okapDo, yOkap, zOkapu, n),
+        naWierzch(kalenicaDo, kalenicaY, rise, n),
+        naWierzch(kalenicaOd, kalenicaY, rise, n),
+      ],
+    })
+  }
+
+  if (isHip) {
+    // Skos szczytowy opada wzdłuż osi X, więc i jego normalna leży w tej osi.
+    for (const [xOkap, xKalenicy, znakX, nazwa] of [
+      [-eaves, span / 2, 1, 'Skos lewy'],
+      [dlugosc + eaves, dlugosc - span / 2, -1, 'Skos prawy'],
+    ] as Array<[number, number, 1 | -1, string]>) {
+      const n = p3(-znakX * sin, 0, cos)
+      const szczyt = naWierzch(xKalenicy, kalenicaY, rise, n)
+      polacie.push({
+        nazwa,
+        rogi: [
+          naWierzch(xOkap, -eaves, zOkapu, n),
+          naWierzch(xOkap, span + eaves, zOkapu, n),
+          szczyt,
+          szczyt,
+        ],
+      })
+    }
+  }
+
+  return polacie
+}
+
+/** Grubość warstwy kontrłat i łat pod pokryciem [mm]. */
+const GRUBOSC_LACENIA = 65
+
 export function wierzcholki(b: Omit<Belka, 'id'>): Punkt3[] {
   const os = normalizuj(odejmij(b.koniec, b.start))
   const gora = normalizuj(ortogonalizuj(b.gora, os))

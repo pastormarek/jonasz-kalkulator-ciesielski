@@ -65,6 +65,11 @@ export const COVERING_INFO: Record<Covering, { label: string; battenSpacing: num
     battenSpacing: 350,
     hint: 'Rozstaw musi trafić w moduł arkusza — inaczej nie zejdzie się na zamku.',
   },
+  'blacha-trapezowa': {
+    label: 'Blacha trapezowa',
+    battenSpacing: 400,
+    hint: 'Najtańsze pokrycie z blachy. Rozstaw łat zależy od wysokości profilu — im niższa fala, tym gęściej.',
+  },
   'blacha-na-rabek': {
     label: 'Blacha na rąbek',
     battenSpacing: 400,

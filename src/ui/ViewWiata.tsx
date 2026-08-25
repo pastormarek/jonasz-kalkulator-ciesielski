@@ -33,6 +33,7 @@ import {
 } from './controls'
 import { degToPercent, percentToDeg } from '../core/geometry'
 import { liczba, mm } from './format'
+import { IKONY_WIATY } from './ikony'
 
 export function ViewWiata({
   input,
@@ -99,6 +100,7 @@ export function ViewWiata({
             value: k,
             label: SHELTER_KIND_LABELS[k].label,
             opis: SHELTER_KIND_LABELS[k].opis,
+            ikona: <IkonaRodzaju rodzaj={k} />,
           }))}
         />
 
@@ -546,4 +548,10 @@ function PodpowiedzSlupa() {
 /** Typowe przekroje krokwi. */
 function PodpowiedzKrokwi() {
   return <>Typowe: {COMMON_SECTIONS.slice(4, 9).map((s) => `${s.b}×${s.h}`).join(', ')} mm.</>
+}
+
+/** Piktogram rodzaju konstrukcji: wiata, zadaszenie albo pergola. */
+function IkonaRodzaju({ rodzaj }: { rodzaj: string }) {
+  const Rysunek = IKONY_WIATY[rodzaj]
+  return Rysunek ? <>{Rysunek()}</> : null
 }

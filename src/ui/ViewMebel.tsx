@@ -21,6 +21,7 @@ import type { StockMode } from '../core/types'
 import { Karta, PoleLiczbowe, PoleWyboru, Przelacznik, Wynik, Komunikat } from './controls'
 import { liczba } from './format'
 import { useDlugosc } from './units'
+import { IKONY_KATEGORII_MEBLI } from './ikony'
 
 const KATEGORIE = Object.keys(KATEGORIA_LABELS) as KategoriaMebla[]
 
@@ -61,6 +62,9 @@ export function ViewMebel({
               aria-pressed={kategoria === k}
               onClick={() => setKategoria(k)}
             >
+              <span className="ikona-dzialu" aria-hidden="true">
+                <IkonaDzialu dzial={k} />
+              </span>
               {KATEGORIA_LABELS[k].label}
             </button>
           ))}
@@ -266,4 +270,10 @@ const OPIS_TRUDNOSCI: Record<1 | 2 | 3, string> = {
   1: 'piła, wkrętarka i kątownik',
   2: 'trzeba pilnować kątów i poziomów',
   3: 'cięcia pod kątem, szablony, wprawa',
+}
+
+/** Piktogram działu katalogu mebli. */
+function IkonaDzialu({ dzial }: { dzial: string }) {
+  const Rysunek = IKONY_KATEGORII_MEBLI[dzial]
+  return Rysunek ? <>{Rysunek()}</> : null
 }

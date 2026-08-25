@@ -194,10 +194,11 @@ export function WyborKafelkowy<T extends string>({
 }: {
   value: T
   onChange: (v: T) => void
-  opcje: Array<{ value: T; label: string; opis?: string }>
+  opcje: Array<{ value: T; label: string; opis?: string; ikona?: ReactNode }>
 }) {
+  const zIkonami = opcje.some((o) => o.ikona)
   return (
-    <div className="wybor">
+    <div className={zIkonami ? 'wybor z-ikonami' : 'wybor'}>
       {opcje.map((o) => (
         <button
           key={o.value}
@@ -205,6 +206,13 @@ export function WyborKafelkowy<T extends string>({
           aria-pressed={value === o.value}
           onClick={() => onChange(o.value)}
         >
+          {/* Rysunek jest ilustracją napisu, nie jego zamiennikiem — czytnik
+              ekranu ma odczytać nazwę, a nie opis kształtu. */}
+          {o.ikona && (
+            <span className="ikona-wyboru" aria-hidden="true">
+              {o.ikona}
+            </span>
+          )}
           {o.label}
           {o.opis && <small>{o.opis}</small>}
         </button>
