@@ -63,6 +63,9 @@ export interface RafterSplice {
  */
 export type RafterFixing = 'wkrety' | 'katowniki'
 
+/** Sposób zejścia krokwi w kalenicy — szczegóły w `geometry.ts`. */
+export type RidgeJointKind = 'czolowe' | 'zakladka'
+
 /** Rodzaj pokrycia — decyduje o rozstawie łat i zapasach. */
 export type Covering =
   | 'dachowka-ceramiczna'
@@ -117,6 +120,25 @@ export interface RoofInput {
 
   /** Głębokość zaciosu na murłacie [mm]. Norma: nie więcej niż 1/3 wysokości krokwi. */
   notchDepth: number
+
+  /**
+   * Jak krokwie schodzą się w kalenicy.
+   *
+   * Przy zakładce krokiew nie kończy się na osi, tylko przechodzi za nią
+   * i mija się z krokwią przeciwną — jest wtedy wyraźnie dłuższa. Dlatego
+   * to pole zmienia wynik obliczeń, a nie tylko rysunek.
+   */
+  ridgeJoint: RidgeJointKind
+
+  /** Czy liczyć deskę podrynnową. */
+  hasFascia: boolean
+  /**
+   * Wysokość deski podrynnowej [mm].
+   *
+   * To ona, a nie sama krokiew, wyznacza pionowe cięcie na końcu krokwi:
+   * tnie się o dwa centymetry niżej niż wysokość deski.
+   */
+  fasciaHeight: number
 
   // --- więźba krokwiowo-jętkowa ---
   /** Wysokość dolnej krawędzi jętki nad poziomem murłaty [mm]. */

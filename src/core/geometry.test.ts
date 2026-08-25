@@ -8,6 +8,9 @@ import {
   percentToDeg,
   degToPercent,
   ratioToDeg,
+  ridgeJoint,
+  eavesCut,
+  deg2rad,
 } from './geometry'
 
 /** Pomocnik: porównanie z tolerancją w milimetrach lub stopniach. */
@@ -149,5 +152,81 @@ describe('jętka', () => {
     const rise = 4000 * Math.tan((40 * Math.PI) / 180) // ok. 3356 mm
     expect(collarGeometry(8000, 40, rise + 100, 80).valid).toBe(false)
     expect(collarGeometry(8000, 40, rise - 500, 80).valid).toBe(true)
+  })
+})
+
+describe('złącze krokwi w kalenicy', () => {
+  it('cięcie czołowe niczego nie wydłuża', () => {
+    const z = ridgeJoint('czolowe', 180, 80, 42)
+    expect(z.extension).toBe(0)
+    expect(z.overshootRun).toBe(0)
+    expect(z.depth).toBe(0)
+  })
+
+  it('zakładka wybiera pół grubości krokwi', () => {
+    expect(ridgeJoint('zakladka', 180, 80, 42).depth).toBe(40)
+  })
+
+  /**
+   * Sprawdzenie wzoru niezależną drogą: zamiast porównywać go z samym sobą,
+   * odtwarzamy krawędzie obu krokwi w przekroju i sprawdzamy warunek podany
+   * przez cieślę — dolna krawędź jednej krokwi ma dochodzić dokładnie do
+   * górnej krawędzi drugiej.
+   */
+  it('dolna krawędź krokwi dochodzi do górnej krawędzi krokwi przeciwnej', () => {
+    for (const pitch of [20, 30, 42, 50]) {
+      for (const h of [140, 180, 220]) {
+        const z = ridgeJoint('zakladka', h, 80, pitch)
+        const a = deg2rad(pitch)
+        const x = z.overshootRun
+
+        // Górna krawędź krokwi z prawej strony, licząc od wierzchołka kalenicy.
+        const goraPrawej = -x * Math.tan(a)
+        // Dolna krawędź krokwi z lewej: ta sama prosta przesunięta o h
+        // prostopadle do połaci.
+        const dolLewej = (x - h * Math.sin(a)) * Math.tan(a) - h * Math.cos(a)
+
+        expect(dolLewej).toBeCloseTo(goraPrawej, 6)
+      }
+    }
+  })
+
+  it('wydłużenie jest przeliczeniem przejścia na długość wzdłuż połaci', () => {
+    const z = ridgeJoint('zakladka', 180, 80, 42)
+    expect(z.extension).toBeCloseTo(z.overshootRun / Math.cos(deg2rad(42)), 6)
+    // Krokiew 18 cm przy 42° wydłuża się o mniej więcej własną wysokość.
+    expect(z.extension).toBeCloseTo(181, 0)
+  })
+
+  it('im płycej schodzą się krokwie, tym dłuższa zakładka', () => {
+    const stromy = ridgeJoint('zakladka', 180, 80, 50)
+    const plaski = ridgeJoint('zakladka', 180, 80, 15)
+    expect(plaski.extension).toBeGreaterThan(stromy.extension)
+  })
+
+  it('dach bez spadku nie ma czego zazębiać', () => {
+    const z = ridgeJoint('zakladka', 180, 80, 0)
+    expect(Number.isFinite(z.extension)).toBe(true)
+    expect(z.extension).toBe(0)
+  })
+})
+
+describe('cięcie krokwi przy desce podrynnowej', () => {
+  // Przykład wprost od cieśli: deska 20 cm daje cięcie pionowe 18 cm.
+  it('cięcie wypada dwa centymetry niżej niż deska', () => {
+    expect(eavesCut(200, 180, 42).cutHeight).toBe(180)
+    expect(eavesCut(250, 180, 42).cutHeight).toBe(230)
+  })
+
+  it('wysokość krokwi w pionie jest większa od wysokości przekroju', () => {
+    const c = eavesCut(200, 180, 42)
+    expect(c.verticalHeight).toBeCloseTo(180 / Math.cos(deg2rad(42)), 6)
+    expect(c.verticalHeight).toBeGreaterThan(180)
+  })
+
+  it('zbyt wysoka deska nie mieści się na czole krokwi', () => {
+    expect(eavesCut(200, 180, 42).fits).toBe(true)
+    // Krokiew 14 cm przy 42° ma w pionie 18,8 cm — deska 25 cm już się nie mieści.
+    expect(eavesCut(250, 140, 42).fits).toBe(false)
   })
 })

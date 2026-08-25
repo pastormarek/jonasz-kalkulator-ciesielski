@@ -12,6 +12,8 @@
  * Dlatego długość krokwi to po prostu: zasięg poziomy / cos α.
  */
 
+import type { RidgeJointKind } from './types'
+
 export const deg2rad = (deg: number): number => (deg * Math.PI) / 180
 export const rad2deg = (rad: number): number => (rad * 180) / Math.PI
 
@@ -164,6 +166,127 @@ export function notch(
     remainingHeight: (rafterHeight - depth) / cos,
   }
 }
+
+/** Wymiary złącza krokwi w kalenicy. */
+export interface RidgeJoint {
+  kind: RidgeJointKind
+  /** Ile krokiew przechodzi za oś kalenicy, mierzone w poziomie [mm]. */
+  overshootRun: number
+  /** O tyle krokiew jest dłuższa niż przy cięciu czołowym, wzdłuż połaci [mm]. */
+  extension: number
+  /** Głębokość wybrania, mierzona w poprzek krokwi [mm]. */
+  depth: number
+  /** Długość nakładki wzdłuż krokwi — na tyle sięga wybranie [mm]. */
+  lapLength: number
+}
+
+/**
+ * Liczy złącze krokwi w kalenicy.
+ *
+ * ZAKŁADKA CIESIELSKA (odpowiedzi Jonasza, punkty 54–55)
+ * ------------------------------------------------------
+ * Krokwie nie kończą się na osi kalenicy, tylko mijają się bokiem — każda
+ * wybrana na pół grubości, więc po złożeniu dają pełny przekrój. Jak daleko
+ * przechodzą, wyznacza reguła: „patrząc na dolną krawędź krokwi, ona dochodzi
+ * aż do górnej krawędzi kolejnej krokwi w szczycie".
+ *
+ * Wyprowadzenie. Osią odniesienia jest pion przez kalenicę, wierzchołek leży
+ * na przecięciu górnych krawędzi obu krokwi. Górna krawędź krokwi z prawej
+ * opada jak z = −x·tg α. Dolna krawędź krokwi z lewej to ta sama prosta
+ * przesunięta o h prostopadle do połaci, czyli z = (x − h·sin α)·tg α − h·cos α.
+ * Przyrównanie obu i skrócenie (sin²α + cos²α = 1) daje
+ *
+ *     x = h / (2 · sin α)
+ *
+ * a po przeliczeniu na długość mierzoną wzdłuż połaci (dzielenie przez cos α)
+ *
+ *     Δ = h / sin 2α
+ *
+ * Dla krokwi 18 cm przy 42° wychodzi 18,1 cm — o tyle każda krokiew jest
+ * dłuższa niż przy cięciu czołowym. Przy małych kątach wydłużenie rośnie
+ * gwałtownie, bo krokwie schodzą się coraz płycej.
+ *
+ * @param kind sposób zakończenia
+ * @param rafterHeight wysokość przekroju krokwi [mm]
+ * @param rafterWidth grubość krokwi [mm]
+ * @param pitchDeg kąt nachylenia połaci [stopnie]
+ */
+export function ridgeJoint(
+  kind: RidgeJointKind,
+  rafterHeight: number,
+  rafterWidth: number,
+  pitchDeg: number,
+): RidgeJoint {
+  if (kind === 'czolowe') {
+    return { kind, overshootRun: 0, extension: 0, depth: 0, lapLength: 0 }
+  }
+
+  const a = deg2rad(pitchDeg)
+  const sin = Math.sin(a)
+  const sin2 = Math.sin(2 * a)
+  // Dach płaski jak stół nie ma kalenicy, w której cokolwiek dałoby się
+  // zazębić — zwracamy zero zamiast dzielić przez zero.
+  if (sin < 1e-9 || sin2 < 1e-9) {
+    return { kind, overshootRun: 0, extension: 0, depth: rafterWidth / 2, lapLength: 0 }
+  }
+
+  const overshootRun = rafterHeight / (2 * sin)
+  const extension = rafterHeight / sin2
+  return {
+    kind,
+    overshootRun,
+    extension,
+    depth: rafterWidth / 2,
+    lapLength: extension,
+  }
+}
+
+/** Zakończenie krokwi przy okapie, dopasowane do deski podrynnowej. */
+export interface EavesCut {
+  /** Wysokość deski podrynnowej [mm]. */
+  fasciaHeight: number
+  /** Wysokość pionowego cięcia na końcu krokwi [mm]. */
+  cutHeight: number
+  /** Wysokość krokwi zmierzona w pionie, na ukos przekroju [mm]. */
+  verticalHeight: number
+  /** Czy cięcie mieści się w krokwi. */
+  fits: boolean
+}
+
+/**
+ * Liczy pionowe cięcie na końcu krokwi (odpowiedzi Jonasza, punkt 56).
+ *
+ * O wysokości cięcia decyduje deska podrynnowa, a nie sama krokiew: deska ma
+ * zasłonić czoło krokwi i przyjąć hak rynny, więc krokiew tnie się pionowo
+ * o dwa centymetry NIŻEJ niż wysokość deski. Przykład Jonasza: deska 20 cm →
+ * krokiew w cięciu pionowym 18 cm.
+ *
+ * Cięcie nie może być wyższe niż sama krokiew mierzona w pionie — a mierzy się
+ * ją na ukos, więc wynosi h / cos α i jest zauważalnie większa od wysokości
+ * przekroju.
+ */
+export function eavesCut(
+  fasciaHeight: number,
+  rafterHeight: number,
+  pitchDeg: number,
+): EavesCut {
+  const cos = Math.cos(deg2rad(pitchDeg))
+  const verticalHeight = cos > 1e-9 ? rafterHeight / cos : rafterHeight
+  const cutHeight = Math.max(0, fasciaHeight - FASCIA_REVEAL)
+  return {
+    fasciaHeight,
+    cutHeight,
+    verticalHeight,
+    fits: cutHeight <= verticalHeight + 1e-9,
+  }
+}
+
+/**
+ * O tyle cięcie krokwi jest niższe od deski podrynnowej [mm].
+ * Ta odsadzka sprawia, że deska wystaje ponad czoło krokwi i można ją
+ * wyrównać sznurem niezależnie od tego, jak dokładnie wyszły same krokwie.
+ */
+export const FASCIA_REVEAL = 20
 
 /** Geometria naroża dachu kopertowego. */
 export interface HipGeometry {

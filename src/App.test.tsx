@@ -526,3 +526,68 @@ describe('meble ogrodowe i domowe', () => {
     expect(screen.getByRole('tab', { name: /^Mebel$/i })).toHaveProperty('ariaSelected', 'true')
   })
 })
+
+describe('kalenica i deska podrynnowa', () => {
+  it('zakładka ciesielska wydłuża krokiew, cięcie czołowe nie', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await zakladka(user, 'krokwie')
+
+    const przedZmiana = kafelek('Długość krokwi').textContent ?? ''
+
+    await zakladka(user, 'dach')
+    await user.click(screen.getByRole('button', { name: /Zakładka ciesielska/i }))
+    await zakladka(user, 'krokwie')
+
+    // Ta sama krokiew liczona z zakładką musi wyjść dłuższa.
+    expect(kafelek('Długość krokwi').textContent).not.toBe(przedZmiana)
+    expect(kafelek('Wydłużenie krokwi')).toBeDefined()
+    expect(kafelek('Głębokość wybrania')).toBeDefined()
+  })
+
+  it('przy dachu pulpitowym zakładka nie ma czego zazębiać', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: /Jednospadowy/i }))
+    await user.click(screen.getByRole('button', { name: /Zakładka ciesielska/i }))
+
+    expect(screen.getByText(/nie ma kalenicy, w której schodzą się dwie krokwie/i)).toBeDefined()
+
+    await zakladka(user, 'krokwie')
+    // Mimo wybranej zakładki liczymy cięcie czołowe.
+    expect(kafelek('Kalenica').textContent).toMatch(/czołowe/i)
+  })
+
+  it('deska podrynnowa wyznacza pionowe cięcie krokwi i trafia do materiału', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await wpisz(user, /Wysokość deski podrynnowej/i, '250')
+    await zakladka(user, 'krokwie')
+    expect(kafelek('Cięcie pionowe przy okapie').textContent).toMatch(/230/)
+
+    await zakladka(user, 'materiał')
+    expect(screen.getAllByText(/Deska podrynnowa/i).length).toBeGreaterThan(0)
+  })
+
+  it('deska wyższa niż krokiew jest zgłaszana jako błąd', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    // Krokiew 180 mm przy 35° ma w pionie 220 mm — deska 300 mm się nie zmieści.
+    await wpisz(user, /Wysokość deski podrynnowej/i, '300')
+    await zakladka(user, 'krokwie')
+
+    expect(screen.getByText(/Weź niższą deskę/i)).toBeDefined()
+  })
+
+  it('wyłączona deska podrynnowa znika z zestawienia', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByLabelText(/Deska podrynnowa/i))
+    await zakladka(user, 'materiał')
+
+    expect(screen.queryByText(/Deska podrynnowa/i)).toBeNull()
+  })
+})

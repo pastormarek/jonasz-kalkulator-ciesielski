@@ -14,12 +14,16 @@ import {
   notch,
   hipGeometry,
   collarGeometry,
+  ridgeJoint,
+  eavesCut,
   deg2rad,
   type SlopeGeometry,
   type RafterLayout,
   type Notch,
   type HipGeometry,
   type CollarGeometry,
+  type RidgeJoint,
+  type EavesCut,
 } from './geometry'
 import { planCuts, volumeM3, surfaceM2, type CutPlan } from './cutting'
 
@@ -73,6 +77,10 @@ export interface Calculation {
   slope: SlopeGeometry
   layout: RafterLayout
   notchGeom: Notch
+  /** Złącze krokwi w kalenicy: zerowe przy cięciu czołowym. */
+  ridge: RidgeJoint
+  /** Zakończenie krokwi przy okapie, dopasowane do deski podrynnowej. */
+  eaves: EavesCut
   splice: SpliceResult
   hip: HipGeometry | null
   collar: CollarGeometry | null
@@ -106,6 +114,12 @@ export const IMPREGNATION_PER_M2 = 0.2
 export const IMPREGNATION_COATS = 2
 /** Zakład membrany i zapas na docinki [%]. */
 const MEMBRANE_OVERLAP_PCT = 15
+/** Grubość deski podrynnowej [mm] — deska calowa, tak się ją kupuje. */
+const FASCIA_THICKNESS = 25
+
+/** Naddatek na deskę podrynnową [%] — na docinki i łączenia. */
+const FASCIA_SPARE_PCT = 15
+
 /** Rozstaw kotew mocujących murłatę do wieńca [mm]. */
 const ANCHOR_SPACING = 1500
 
@@ -134,6 +148,16 @@ export function calculate(input: RoofInput): Calculation {
   const hip = isHip
     ? hipGeometry(input.span, input.length, input.pitchDeg, input.eaves, layout.spacing)
     : null
+
+  // Dach pulpitowy nie ma kalenicy, w której dwie krokwie mogłyby się minąć —
+  // tam zakładka nie ma czego zazębiać, więc wymuszamy cięcie czołowe.
+  const ridge = ridgeJoint(
+    isShed ? 'czolowe' : input.ridgeJoint,
+    input.rafterSection.h,
+    input.rafterSection.b,
+    input.pitchDeg,
+  )
+  const eaves = eavesCut(input.fasciaHeight, input.rafterSection.h, input.pitchDeg)
 
   const splice = evaluateSplice(input, slope, warnings, notes)
 
@@ -169,6 +193,11 @@ export function calculate(input: RoofInput): Calculation {
   if (collar && !collar.valid) {
     warnings.push('Jętka jest za wysoko — wypada powyżej kalenicy. Obniż ją.')
   }
+  if (input.hasFascia && !eaves.fits) {
+    warnings.push(
+      `Deska podrynnowa ${fmt(input.fasciaHeight)} mm wymaga cięcia pionowego ${fmt(eaves.cutHeight)} mm, a krokiew ma w pionie tylko ${fmt(eaves.verticalHeight)} mm. Weź niższą deskę albo wyższą krokiew.`,
+    )
+  }
   if (input.truss === 'rafter' && slope.rafterToRidge > 4500) {
     warnings.push(
       `Krokiew ma ${fmtM(slope.rafterToRidge)} m w świetle. Przy więźbie krokwiowej powyżej ok. 4,5 m zwykle dokłada się jętki — sprawdź to z konstruktorem.`,
@@ -178,7 +207,16 @@ export function calculate(input: RoofInput): Calculation {
   // --- drewno konstrukcyjne ---
   const timber: TimberItem[] = []
 
-  const rafterLength = withAllowance(slope.rafterTotal, input.cutAllowance)
+  // Przy zakładce krokiew przechodzi za oś kalenicy, więc jest dłuższa niż
+  // wynikałoby z samej geometrii połaci. Kontrłat i łat to nie dotyczy —
+  // one kończą się na kalenicy.
+  const rafterFull = slope.rafterTotal + ridge.extension
+  const rafterLength = withAllowance(rafterFull, input.cutAllowance)
+  if (ridge.extension > 0) {
+    notes.push(
+      `Zakładka w kalenicy wydłuża każdą krokiew o ${fmt(ridge.extension)} mm — długość w zestawieniu już to uwzględnia. Wybranie ma ${fmt(ridge.depth)} mm głębokości, czyli pół grubości krokwi.`,
+    )
+  }
   const openings = input.openings ?? []
   const cut = countCutRafters(openings, layout, input)
 
@@ -270,6 +308,31 @@ export function calculate(input: RoofInput): Calculation {
   }
 
   // --- grupowanie po przekroju i plan cięcia ---
+  if (input.hasFascia && input.fasciaHeight > 0) {
+    // Deska biegnie wzdłuż całego okapu: przy dachu kopertowym dookoła,
+    // przy dwuspadowym po obu stronach, przy pulpitowym po jednej.
+    const bokDlugi = input.length + 2 * (isHip ? input.eaves : input.gableOverhang)
+    const bokKrotki = input.span + 2 * input.eaves
+    const odcinki: Array<{ dlugosc: number; sztuk: number }> = isHip
+      ? [
+          { dlugosc: bokDlugi, sztuk: 2 },
+          { dlugosc: bokKrotki, sztuk: 2 },
+        ]
+      : [{ dlugosc: bokDlugi, sztuk: mainSlopes }]
+
+    for (const o of odcinki) {
+      timber.push({
+        name: 'Deska podrynnowa',
+        section: { b: FASCIA_THICKNESS, h: input.fasciaHeight },
+        // Naddatek 15% na docinki i łączenia — tak liczy to cieśla.
+        length: Math.round(o.dlugosc * (1 + FASCIA_SPARE_PCT / 100)),
+        count: o.sztuk,
+        splittable: true,
+        note: `wzdłuż okapu, z ${FASCIA_SPARE_PCT}% naddatku; krokiew cięta pionowo na ${fmt(eaves.cutHeight)} mm`,
+      })
+    }
+  }
+
   const groups = groupBySection(timber, input.stockLengths)
   const totalVolumeM3 = groups.reduce((s, g) => s + g.volumeM3, 0)
   const purchaseVolumeM3 = groups.reduce(
@@ -427,6 +490,8 @@ export function calculate(input: RoofInput): Calculation {
     slope,
     layout,
     notchGeom,
+    ridge,
+    eaves,
     splice,
     hip,
     collar,

@@ -6,7 +6,15 @@
  * warstwy pokrycia i otwory.
  */
 
-import type { RoofInput, Covering, StockMode, SpliceSupport, Opening, RafterFixing } from '../core/types'
+import type {
+  RoofInput,
+  Covering,
+  StockMode,
+  SpliceSupport,
+  Opening,
+  RafterFixing,
+  RidgeJointKind,
+} from '../core/types'
 import { COVERING_INFO, SHAPE_LABELS, TRUSS_LABELS, stockLengthsFor, COMMON_SECTIONS, FIXING_INFO } from '../core/defaults'
 import {
   Karta,
@@ -17,7 +25,7 @@ import {
   WyborKafelkowy,
   Wzor,
 } from './controls'
-import { degToPercent, percentToDeg } from '../core/geometry'
+import { degToPercent, percentToDeg, ridgeJoint } from '../core/geometry'
 import { liczba, mm } from './format'
 
 export function ViewDach({
@@ -30,6 +38,14 @@ export function ViewDach({
   wyjasnienia: boolean
 }) {
   const pokrycie = COVERING_INFO[input.covering]
+  // Podpowiedź przy zakładce ma pokazywać realne wydłużenie, a nie ogólnik —
+  // liczy je ta sama funkcja, która potem układa zestawienie materiału.
+  const wydluzenie = ridgeJoint(
+    'zakladka',
+    input.rafterSection.h,
+    input.rafterSection.b,
+    input.pitchDeg,
+  ).extension
 
   return (
     <div className="kolumny">
@@ -156,6 +172,73 @@ export function ViewDach({
             siodło zaciosu = głębokość ÷ sin(kąt)
             <br />
             pięta zaciosu = głębokość ÷ cos(kąt)
+          </Wzor>
+        )}
+      </Karta>
+
+      <Karta
+        tytul="Kalenica i okap"
+        podtytul="Jak krokiew kończy się na górze i na dole. To zmienia jej długość."
+      >
+        <label className="pole" style={{ marginBottom: 8 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tekst-slaby)' }}>
+            Zejście krokwi w kalenicy
+          </span>
+        </label>
+        <WyborKafelkowy
+          value={input.ridgeJoint}
+          onChange={(ridgeJoint: RidgeJointKind) => onChange({ ridgeJoint })}
+          opcje={[
+            {
+              value: 'czolowe',
+              label: 'Cięcie czołowe',
+              opis: 'krokwie ścięte pionowo, na styk w osi',
+            },
+            {
+              value: 'zakladka',
+              label: 'Zakładka ciesielska',
+              opis: 'krokwie mijają się, wybrane na pół grubości',
+            },
+          ]}
+        />
+        {input.shape === 'shed' ? (
+          <p className="podpowiedz" style={{ marginTop: 8 }}>
+            Dach pulpitowy nie ma kalenicy, w której schodzą się dwie krokwie — to
+            ustawienie niczego tu nie zmienia.
+          </p>
+        ) : (
+          <p className="podpowiedz" style={{ marginTop: 8 }}>
+            {input.ridgeJoint === 'zakladka'
+              ? `Krokiew przechodzi za oś kalenicy i jest dłuższa o ${mm(wydluzenie)} mm. Wybranie ma ${mm(input.rafterSection.b / 2)} mm głębokości.`
+              : 'Najprostsze rozwiązanie: obie krokwie ścięte pionowo i skręcone przez płatew albo wzajemnie.'}
+          </p>
+        )}
+
+        <div className="odstep" />
+
+        <Przelacznik
+          label="Deska podrynnowa"
+          opis="Zasłania czoła krokwi i przyjmuje haki rynny. Cieśla zaleca ją liczyć."
+          checked={input.hasFascia}
+          onChange={(hasFascia) => onChange({ hasFascia })}
+        />
+        {input.hasFascia && (
+          <div className="siatka-pol" style={{ marginTop: 12 }}>
+            <PoleLiczbowe
+              label="Wysokość deski podrynnowej"
+              value={input.fasciaHeight}
+              onChange={(fasciaHeight) => onChange({ fasciaHeight })}
+              krok={10}
+              podpowiedz={`Krokiew tnie się pionowo 2 cm niżej, czyli na ${mm(Math.max(0, input.fasciaHeight - 20))} mm.`}
+            />
+          </div>
+        )}
+
+        {wyjasnienia && (
+          <Wzor>
+            wydłużenie krokwi przy zakładce = wysokość krokwi ÷ sin(2 × kąt)
+            <br />
+            cięcie pionowe = wysokość deski podrynnowej − 20 mm
           </Wzor>
         )}
       </Karta>

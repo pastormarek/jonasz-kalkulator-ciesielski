@@ -125,6 +125,12 @@ export function defaultInput(): RoofInput {
     wallPlateSection: { b: 140, h: 140 },
 
     notchDepth: 30,
+    // Zakładka jest droższa w robociźnie i wydłuża krokiew, więc nie
+    // narzucamy jej domyślnie — ale cieśla podaje ją jako sposób, w jaki
+    // robi się to porządnie, i pole jest tuż obok.
+    ridgeJoint: 'czolowe',
+    hasFascia: true,
+    fasciaHeight: 200,
 
     collarHeight: 2200,
     collarSection: { b: 80, h: 160 },

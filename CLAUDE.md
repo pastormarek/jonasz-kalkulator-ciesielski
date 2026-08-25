@@ -17,7 +17,7 @@ wyjaśnienia" z wyprowadzeniem wzorów.
 ```bash
 npm run dev      # serwer deweloperski
 npm run build    # wersja produkcyjna do dist/
-npm test         # 218 testów
+npm test         # 232 testy
 python tools/formularz-docx.py    # formularz konsultacyjny, tura 1
 python tools/formularz2-docx.py   # tura 2
 ```
@@ -147,7 +147,10 @@ Numeracja punktów jest **ciągła między turami** (tura 1: 1–50, tura 2: 51�
 żeby odwołania się nie myliły.
 
 Pierwsza tura zmieniła dziewięć rzeczy w obliczeniach — zapis w
-`docs/odpowiedzi-jonasza.md`. Druga tura czeka na odpowiedzi.
+`docs/odpowiedzi-jonasza.md`. Z drugiej wdrożone są zakładka w kalenicy
+i deska podrynnowa (punkty 54–56, 67), reszta czeka —
+`docs/odpowiedzi-jonasza-runda2.md`. Trzecia tura to wytyczne o jakości
+rysunków i wyglądzie aplikacji — `docs/odpowiedzi-jonasza-runda3.md`.
 
 Bieżący stan prac i otwarte wątki: **`docs/STAN.md`**.
 

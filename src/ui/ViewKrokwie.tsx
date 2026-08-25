@@ -20,8 +20,11 @@ export function ViewKrokwie({
   wynik: Calculation
   wyjasnienia: boolean
 }) {
-  const { input, slope, layout, notchGeom, hip, collar, splice } = wynik
+  const { input, slope, layout, notchGeom, ridge, eaves, hip, collar, splice } = wynik
   const { dl, rozbita } = useDlugosc()
+  // Długość, którą cieśla ma odmierzyć na drewnie — a więc razem z zakładką,
+  // jeśli krokiew przechodzi za oś kalenicy. Sama geometria połaci mówi tu za mało.
+  const dlugoscKrokwi = slope.rafterTotal + ridge.extension
   const krokwiRazem = wynik.timber
     .filter((t) => t.name.startsWith('Krokiew') || t.name.startsWith('Kulawka'))
     .reduce((s, t) => s + t.count, 0)
@@ -42,9 +45,13 @@ export function ViewKrokwie({
       <div className="wyniki" style={{ marginBottom: 16 }}>
         <Wynik
           etykieta={splice.active ? 'Krokiew razem' : 'Długość krokwi'}
-          wartosc={rozbita(slope.rafterTotal).wartosc}
-          jednostka={rozbita(slope.rafterTotal).jednostka}
-          opis={`z okapem ${dl(input.eaves)}; sama połać ${dl(slope.rafterToRidge)}`}
+          wartosc={rozbita(dlugoscKrokwi).wartosc}
+          jednostka={rozbita(dlugoscKrokwi).jednostka}
+          opis={
+            ridge.extension > 0
+              ? `z okapem ${dl(input.eaves)} i zakładką ${dl(ridge.extension)}`
+              : `z okapem ${dl(input.eaves)}; sama połać ${dl(slope.rafterToRidge)}`
+          }
           wyrozniony
         />
         <Wynik
@@ -172,6 +179,98 @@ export function ViewKrokwie({
             <br />
             pięta = {mm(notchGeom.depth)} ÷ cos({liczba(input.pitchDeg, 0)}°) ={' '}
             {mm(notchGeom.heelHeight)} mm
+          </Wzor>
+        )}
+      </Karta>
+
+      <Karta
+        tytul="Zakończenia krokwi"
+        podtytul="Czym krokiew kończy się w kalenicy i przy okapie."
+      >
+        <div className="wyniki" style={{ marginBottom: 16 }}>
+          {ridge.kind === 'zakladka' ? (
+            <>
+              <Wynik
+                etykieta="Wydłużenie krokwi"
+                wartosc={mm(ridge.extension)}
+                jednostka="mm"
+                opis="o tyle dłuższa niż przy cięciu czołowym"
+                wyrozniony
+              />
+              <Wynik
+                etykieta="Przejście za oś"
+                wartosc={mm(ridge.overshootRun)}
+                jednostka="mm"
+                opis="mierzone w poziomie, od osi kalenicy"
+                wyrozniony
+              />
+              <Wynik
+                etykieta="Głębokość wybrania"
+                wartosc={mm(ridge.depth)}
+                jednostka="mm"
+                opis="pół grubości krokwi"
+                wyrozniony
+              />
+            </>
+          ) : (
+            <Wynik
+              etykieta="Kalenica"
+              wartosc="cięcie czołowe"
+              opis="obie krokwie ścięte pionowo, na styk w osi"
+            />
+          )}
+
+          {input.hasFascia && (
+            <>
+              <Wynik
+                etykieta="Cięcie pionowe przy okapie"
+                wartosc={mm(eaves.cutHeight)}
+                jednostka="mm"
+                opis={`deska podrynnowa ${mm(eaves.fasciaHeight)} mm, cięcie 2 cm niżej`}
+                wyrozniony={eaves.fits}
+              />
+              <Wynik
+                etykieta="Krokiew w pionie"
+                wartosc={mm(eaves.verticalHeight)}
+                jednostka="mm"
+                opis={
+                  eaves.fits
+                    ? 'cięcie się w niej mieści'
+                    : 'za mało — cięcie nie zmieści się w krokwi'
+                }
+              />
+            </>
+          )}
+        </div>
+
+        {ridge.kind === 'zakladka' && (
+          <Komunikat rodzaj="info">
+            Przy zakładce dolna krawędź krokwi dochodzi do górnej krawędzi krokwi
+            przeciwnej. Obie są wybrane na pół grubości, więc po złożeniu dają pełny
+            przekrój. Długości w zestawieniu materiału już to uwzględniają.
+          </Komunikat>
+        )}
+
+        {wyjasnienia && (
+          <Wzor>
+            {ridge.kind === 'zakladka' && (
+              <>
+                przejście za oś = wysokość krokwi ÷ (2 × sin({liczba(input.pitchDeg, 0)}°)) ={' '}
+                {mm(ridge.overshootRun)} mm
+                <br />
+                wydłużenie = wysokość krokwi ÷ sin(2 × {liczba(input.pitchDeg, 0)}°) ={' '}
+                {mm(ridge.extension)} mm
+                <br />
+              </>
+            )}
+            {input.hasFascia && (
+              <>
+                cięcie pionowe = {mm(eaves.fasciaHeight)} − 20 = {mm(eaves.cutHeight)} mm
+                <br />
+                krokiew w pionie = wysokość ÷ cos({liczba(input.pitchDeg, 0)}°) ={' '}
+                {mm(eaves.verticalHeight)} mm
+              </>
+            )}
           </Wzor>
         )}
       </Karta>

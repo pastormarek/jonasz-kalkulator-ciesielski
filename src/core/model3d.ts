@@ -269,15 +269,29 @@ export function zbudujModel(w: Calculation): Model3D {
     ? pozycjeX.filter((x) => x >= span / 2 && x <= dlugosc - span / 2)
     : pozycjeX
 
+  // Przy zakładce krokiew nie kończy się na osi kalenicy, tylko przechodzi
+  // za nią i mija się z krokwią przeciwną.
+  const przejscie = w.ridge.overshootRun
+  // Bryła prostopadłościenna nie pokaże wybrania na pół grubości, więc żeby
+  // krokwie nie przenikały się w rysunku nawzajem, rozsuwamy je o ćwierć
+  // grubości na boki. To zabieg rysunkowy: rozstaw w obliczeniach zostaje
+  // dokładnie taki, jaki wyszedł z rozkładu.
+  const rozsuniecie = przejscie > 0 ? input.rafterSection.b / 4 : 0
+
   for (const znak of kierunkiPolaci) {
     const yOparcia = znak === 1 ? 0 : span
     for (const x of zakresKrokwi) {
       const yOkap = yOparcia - znak * eaves
+      const xKrokwi = x + znak * rozsuniecie
       dodaj({
         nazwa: 'Krokiew',
         etap: 'krokwie',
-        start: p3(x, yOkap, -eaves * Math.tan(a)),
-        koniec: p3(x, kalenicaY, rise),
+        start: p3(xKrokwi, yOkap, -eaves * Math.tan(a)),
+        koniec: p3(
+          xKrokwi,
+          kalenicaY + znak * przejscie,
+          rise + przejscie * Math.tan(a),
+        ),
         gora: gornaPolaci(znak),
         b: input.rafterSection.b,
         h: input.rafterSection.h,
