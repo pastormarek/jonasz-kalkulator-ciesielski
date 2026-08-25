@@ -2,7 +2,9 @@
 
 Aplikacja liczy więźbę dachową: długość i rozstaw krokwi, głębokość zaciosów,
 geometrię naroży dachu kopertowego oraz pełne zestawienie materiału do zakupu.
-Działa jako strona internetowa i jako aplikacja instalowana na telefonie (PWA).
+Liczy też **wiaty, zadaszenia przyścienne i pergole** — słupy, oczepy, miecze,
+stopy fundamentowe i odwodnienie. Działa jako strona internetowa i jako
+aplikacja instalowana na telefonie (PWA).
 
 ## Uruchomienie
 
@@ -50,6 +52,31 @@ Konstrukcja to same prostopadłościany, a gotowa biblioteka dołożyłaby do
 aplikacji kilkaset kilobajtów — przy narzędziu, które ma działać na telefonie
 w terenie, to zła zamiana.
 
+**Wiaty, zadaszenia i pergole**
+
+Przełącznik w nagłówku zmienia to, co liczymy. Wiata nie stoi na murach, więc
+pytania są inne niż przy dachu: wysokość w świetle, rozstaw słupów, sposób ich
+osadzenia i głębokość stóp fundamentowych.
+
+- trzy rodzaje: wiata wolnostojąca, zadaszenie dostawione do ściany budynku
+  i pergola ze szczeblinami,
+- dwuspadowa albo jednospadowa, opcjonalnie z belką kalenicową na słupach,
+- rozkład słupów, wysokości obu rzędów, długości oczepów i krokwi,
+- miecze wzdłużne i poprzeczne — bez nich rama składa się pod naporem wiatru
+  i aplikacja mówi o tym wprost,
+- stopy fundamentowe: objętość betonu, wykop, podstawy słupów i kotwy,
+- pokrycie od poliwęglanu po dachówkę, z kontrolą minimalnego spadku,
+- rynny, rury spustowe, haki i kolana,
+- przekrój poprzeczny i rzut z góry, oba wymiarowane,
+- model przestrzenny z montażem od stóp fundamentowych po szczebliny,
+- gotowe modele do wczytania jednym kliknięciem: wiata na jedno i na dwa auta,
+  na drewno opałowe, gospodarcza na maszyny, zadaszenie tarasu, wejścia,
+  carport przy ścianie, przybudówka, cztery pergole. Każdy jest punktem wyjścia
+  do własnych zmian, a nie gotowcem — wymiary i przekroje trzeba dopasować.
+
+Projekt trzyma dane dachu i wiaty równolegle, więc przełączanie się między nimi
+niczego nie kasuje.
+
 **Projekt PDF**
 
 Wczytany plik jest przeglądany w aplikacji, a z jego warstwy tekstowej
@@ -92,8 +119,13 @@ src/
   core/         obliczenia — czysty TypeScript, bez React
     geometry.ts   geometria dachu: połacie, zaciosy, naroża, jętki
     cutting.ts    plan cięcia i objętości drewna
-    materials.ts  zestawienie materiału
+    materials.ts  zestawienie materiału dachu
+    model3d.ts    bryły w przestrzeni
     defaults.ts   wartości domyślne i słowniki
+    shelter.ts          geometria wiaty: słupy, miecze, fundamenty, rynny
+    shelterMaterials.ts zestawienie materiału wiaty
+    shelterModel3d.ts   model przestrzenny wiaty
+    shelterPresets.ts   gotowe modele do wczytania
   ui/           interfejs
   pdf/          odczyt projektu z PDF
   state/        zapis projektów i link
@@ -123,6 +155,10 @@ rozstaw krokwi dopasowany do okien dachowych i strefy śniegowe według lokaliza
 Kalkulator liczy geometrię i ilości. **Nie sprawdza nośności ani doboru
 przekrojów** — te muszą wynikać z projektu konstrukcyjnego. Przed zamówieniem
 drewna wyniki należy porównać z rysunkami.
+
+Przy wiacie dochodzi druga granica: liczymy objętość stóp fundamentowych, ale
+nie sprawdzamy nośności gruntu ani obciążenia wiatrem. Konstrukcja bez ścian
+jest na parcie wiatru znacznie wrażliwsza niż dach oparty na murach.
 
 ## Uwaga o OneDrive
 

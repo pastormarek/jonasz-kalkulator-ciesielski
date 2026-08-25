@@ -341,7 +341,7 @@ export function RysunekZaciosu({
 }
 
 /** Pozioma linia wymiarowa ze strzałkami i opisem. */
-function WymiarPoziomy({
+export function WymiarPoziomy({
   x1,
   x2,
   y,
@@ -365,7 +365,7 @@ function WymiarPoziomy({
 }
 
 /** Pionowa linia wymiarowa ze strzałkami i opisem. */
-function WymiarPionowy({
+export function WymiarPionowy({
   x,
   y1,
   y2,

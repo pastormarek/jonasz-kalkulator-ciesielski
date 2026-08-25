@@ -1,5 +1,8 @@
 /**
- * Widok przestrzenny więźby.
+ * Widok przestrzenny konstrukcji — więźby dachowej albo wiaty.
+ *
+ * Gotowy model dostaje z zewnątrz, więc ten sam ekran obsługuje obie gałęzie
+ * aplikacji: dach i wiatę. Różnią się tylko podpisami.
  *
  * Dwa tryby:
  *  - CAŁOŚĆ — gotowy dach, obracany dowolnie, do obejrzenia i pokazania klientowi,
@@ -9,15 +12,14 @@
  * Widok da się zapisać jako obrazek, żeby zabrać go na budowę albo wysłać.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Calculation } from '../core/materials'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
-  zbudujModel,
   policzEtapy,
   OPIS_ETAPU,
   ETAPY,
   type Etap,
   type Belka,
+  type Model3D,
 } from '../core/model3d'
 import {
   rysuj,
@@ -31,8 +33,22 @@ import { Karta, Komunikat } from './controls'
 import { liczba, odmiana } from './format'
 import { useDlugosc } from './units'
 
-export function ViewModel({ wynik, nazwaProjektu }: { wynik: Calculation; nazwaProjektu: string }) {
-  const model = useMemo(() => zbudujModel(wynik), [wynik])
+export function ViewModel({
+  model,
+  nazwaProjektu,
+  etykietaCalosci = 'Cały dach',
+  opisPlotna = 'Przestrzenny model więźby dachowej',
+  wskazowka,
+}: {
+  model: Model3D
+  nazwaProjektu: string
+  /** Podpis przycisku trybu „całość" — inny dla dachu, inny dla wiaty. */
+  etykietaCalosci?: string
+  /** Opis płótna dla czytnika ekranu. */
+  opisPlotna?: string
+  /** Uwaga pod wykazem elementów. */
+  wskazowka?: ReactNode
+}) {
   const etapyObecne = useMemo(() => policzEtapy(model), [model])
 
   const [kamera, setKamera] = useState<Kamera>(() => kameraPoczatkowa(model))
@@ -169,7 +185,7 @@ export function ViewModel({ wynik, nazwaProjektu }: { wynik: Calculation; nazwaP
         <div className="rzad" style={{ marginBottom: 12 }}>
           <div className="wybor" style={{ gridTemplateColumns: '1fr 1fr', flex: '1 1 240px' }}>
             <button type="button" aria-pressed={tryb === 'calosc'} onClick={() => setTryb('calosc')}>
-              Cały dach
+              {etykietaCalosci}
               <small>gotowa konstrukcja</small>
             </button>
             <button type="button" aria-pressed={tryb === 'montaz'} onClick={() => setTryb('montaz')}>
@@ -184,7 +200,7 @@ export function ViewModel({ wynik, nazwaProjektu }: { wynik: Calculation; nazwaP
             ref={canvasRef}
             className="model-plotno"
             role="img"
-            aria-label="Przestrzenny model więźby dachowej"
+            aria-label={opisPlotna}
             onPointerDown={(e) => {
               e.currentTarget.setPointerCapture(e.pointerId)
               przeciaganie.current = { x: e.clientX, y: e.clientY }
@@ -382,8 +398,12 @@ export function ViewModel({ wynik, nazwaProjektu }: { wynik: Calculation; nazwaP
             </table>
           </div>
           <Komunikat rodzaj="info">
-            Model pokazuje rozmieszczenie i wymiary elementów. Nie rysuje zaciosów ani
-            połączeń — te znajdziesz w zakładce „Krokwie".
+            {wskazowka ?? (
+              <>
+                Model pokazuje rozmieszczenie i wymiary elementów. Nie rysuje zaciosów ani
+                połączeń — te znajdziesz w zakładce „Krokwie".
+              </>
+            )}
           </Komunikat>
         </Karta>
       )}

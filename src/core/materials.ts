@@ -101,9 +101,9 @@ export interface Calculation {
 }
 
 /** Zużycie impregnatu [l/m²] na jedną warstwę. */
-const IMPREGNATION_PER_M2 = 0.2
+export const IMPREGNATION_PER_M2 = 0.2
 /** Liczba warstw impregnatu. */
-const IMPREGNATION_COATS = 2
+export const IMPREGNATION_COATS = 2
 /** Zakład membrany i zapas na docinki [%]. */
 const MEMBRANE_OVERLAP_PCT = 15
 /** Rozstaw kotew mocujących murłatę do wieńca [mm]. */
@@ -654,8 +654,8 @@ function rafterItems(
   ]
 }
 
-/** Grupuje elementy po przekroju i układa dla każdej grupy plan cięcia. */
-function groupBySection(timber: TimberItem[], stockLengths: number[]): TimberGroup[] {
+/** Grupuje elementy po przekroju i układa dla każdej grupy plan cięcia. Wspólne dla dachu i wiaty. */
+export function groupBySection(timber: TimberItem[], stockLengths: number[]): TimberGroup[] {
   const map = new Map<string, TimberGroup>()
 
   for (const item of timber) {
@@ -699,7 +699,7 @@ function groupBySection(timber: TimberItem[], stockLengths: number[]): TimberGro
 }
 
 /** Dokłada naddatek na docięcie do długości elementu. */
-function withAllowance(length: number, allowance: number): number {
+export function withAllowance(length: number, allowance: number): number {
   return length > 0 ? length + allowance : 0
 }
 

@@ -208,3 +208,184 @@ describe('aplikacja jako całość', () => {
     )
   })
 })
+
+describe('wiaty, zadaszenia i pergole', () => {
+  /** Przełącza aplikację na gałąź wiat. */
+  async function naWiate(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: /^Wiata$/ }))
+  }
+
+  it('przełącznik w nagłówku podmienia zakładki na wiatowe', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    expect(screen.getByRole('tab', { name: /dach/i })).toBeDefined()
+    await naWiate(user)
+
+    expect(screen.getByRole('tab', { name: /wiata/i })).toBeDefined()
+    expect(screen.getByRole('tab', { name: /konstrukcja/i })).toBeDefined()
+    expect(screen.queryByRole('tab', { name: /krokwie/i })).toBeNull()
+    expect(screen.getByLabelText(/Wysokość w świetle/i)).toBeDefined()
+  })
+
+  it('liczy długość krokwi wiaty z wpisanych wymiarów', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await naWiate(user)
+
+    // Jednospadowa 4 m szerokości pod 45°, bez okapów: krokiew = 4 m × √2.
+    await user.click(screen.getByRole('button', { name: /Jednospadowy/i }))
+    await wpisz(user, /^Szerokość/i, '4000')
+    await wpisz(user, /Okap w poprzek/i, '0')
+    await wpisz(user, /^Kąt nachylenia/i, '45')
+
+    await zakladka(user, 'konstrukcja')
+    expect(within(kafelek('Długość krokwi')).getByText('566')).toBeDefined()
+  })
+
+  it('pokazuje liczbę słupów i beton na stopy', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await naWiate(user)
+
+    await wpisz(user, /^Długość/i, '9000')
+    await wpisz(user, /Największy rozstaw słupów/i, '3000')
+    await zakladka(user, 'konstrukcja')
+
+    // Cztery słupy w rzędzie, dwa rzędy.
+    expect(within(kafelek('Słupy')).getByText('8')).toBeDefined()
+    expect(screen.getByText('Beton na stopy')).toBeDefined()
+  })
+
+  it('ostrzega, gdy ktoś wyłączy miecze', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await naWiate(user)
+
+    await user.click(screen.getByRole('checkbox', { name: /Miecze usztywniające/i }))
+    await zakladka(user, 'konstrukcja')
+
+    const alerty = screen.getAllByRole('alert').map((a) => a.textContent ?? '')
+    expect(alerty.some((t) => /mieczy/i.test(t))).toBe(true)
+  })
+
+  it('pergola przestawia się na szczebliny i chowa rynny', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await naWiate(user)
+
+    await user.click(screen.getByRole('button', { name: /Pergola/i }))
+    expect(screen.getByLabelText(/Rozstaw szczeblin/i)).toBeDefined()
+    expect(screen.getByText(/nie zbiera wody/i)).toBeDefined()
+
+    await zakladka(user, 'materiał')
+    expect(screen.getAllByText(/Szczeblina/i).length).toBeGreaterThan(0)
+  })
+
+  it('zadaszenie przyścienne dokłada belkę ścienną i kotwy do muru', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await naWiate(user)
+
+    await user.click(screen.getByRole('button', { name: /Zadaszenie przyścienne/i }))
+    await zakladka(user, 'materiał')
+
+    expect(screen.getAllByText(/Belka ścienna/i).length).toBeGreaterThan(0)
+    expect(screen.getByText(/Kotwa belki ściennej/i)).toBeDefined()
+  })
+
+  it('zestawienie wiaty pokazuje fundamenty i pokrycie', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await naWiate(user)
+    await zakladka(user, 'materiał')
+
+    expect(screen.getByText('Drewno do kupienia')).toBeDefined()
+    expect(screen.getAllByText(/Stopa fundamentowa/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Blacha trapezowa/i).length).toBeGreaterThan(0)
+  })
+
+  it('model przestrzenny wiaty prowadzi przez montaż od stóp fundamentowych', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await naWiate(user)
+    await zakladka(user, 'model')
+
+    expect(screen.getByRole('button', { name: /Cała wiata/i })).toBeDefined()
+    expect(screen.getByText(/Stopy fundamentowe/i)).toBeDefined()
+  })
+
+  it('przełączenie rodzaju nie kasuje danych drugiej konstrukcji', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await wpisz(user, /Rozpiętość budynku/i, '9500')
+    await naWiate(user)
+    await wpisz(user, /^Szerokość/i, '4200')
+
+    await user.click(screen.getByRole('button', { name: /^Dach$/ }))
+    expect(screen.getByLabelText(/Rozpiętość budynku/i)).toHaveProperty('value', '9500')
+
+    await naWiate(user)
+    expect(screen.getByLabelText(/^Szerokość/i)).toHaveProperty('value', '4200')
+  })
+
+  it('gotowy model wczytuje komplet wymiarów jednym kliknięciem', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await naWiate(user)
+
+    await user.click(screen.getByRole('button', { name: /Garażowa na jedno auto/i }))
+
+    expect(screen.getByLabelText(/^Szerokość/i)).toHaveProperty('value', '3500')
+    expect(screen.getByLabelText(/^Długość/i)).toHaveProperty('value', '5500')
+    expect(screen.getByLabelText(/Wysokość w świetle/i)).toHaveProperty('value', '2400')
+
+    // Model ma się policzyć od razu, bez ostrzeżeń do poprawienia.
+    await zakladka(user, 'konstrukcja')
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('lista modeli pokazuje tylko te z wybranego rodzaju', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await naWiate(user)
+
+    expect(screen.getByRole('button', { name: /Garażowa na dwa auta/i })).toBeDefined()
+    expect(screen.queryByRole('button', { name: /Pergola ogrodowa/i })).toBeNull()
+
+    // Kafelek rodzaju rozpoznajemy po opisie, bo nazwy modeli też zaczynają się od „Pergola".
+    await user.click(screen.getByRole('button', { name: /rama ze szczeblinami/i }))
+    expect(screen.getByRole('button', { name: /Pergola ogrodowa/i })).toBeDefined()
+    expect(screen.queryByRole('button', { name: /Garażowa na dwa auta/i })).toBeNull()
+  })
+
+  it('wczytany model nie kasuje ustawienia drewna na wymiar', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await naWiate(user)
+
+    await user.click(screen.getByRole('button', { name: /Na wymiar/i }))
+    await user.click(screen.getByRole('button', { name: /Gospodarcza na maszyny/i }))
+
+    expect(screen.getByLabelText(/^Szerokość/i)).toHaveProperty('value', '8000')
+    expect(screen.getByText(/realnie do 12 m/i)).toBeDefined()
+  })
+
+  it('zapisana wiata wraca z listy projektów jako wiata', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await naWiate(user)
+
+    await wpisz(user, /Nazwa projektu/i, 'Wiata na drewno')
+    await user.click(screen.getByRole('button', { name: /^Zapisz$/i }))
+    await user.click(screen.getByRole('button', { name: /^Projekty$/i }))
+
+    const okno = document.querySelector('.okno') as HTMLElement
+    expect(within(okno).getByText('Wiata na drewno')).toBeDefined()
+    expect(within(okno).getByText(/Wiata wolnostojąca/i)).toBeDefined()
+
+    await user.click(within(okno).getByRole('button', { name: /Otwórz/i }))
+    expect(screen.getByRole('tab', { name: /wiata/i })).toHaveProperty('ariaSelected', 'true')
+  })
+})

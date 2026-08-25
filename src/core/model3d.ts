@@ -29,27 +29,43 @@ export interface Punkt3 {
  * tak samo numerowane są kroki w instrukcji.
  */
 export const ETAPY = [
+  'stopy',
   'murlaty',
   'slupy',
+  'oczepy',
   'platwie',
+  'zastrzaly',
   'krokwie',
   'jetki',
   'wymiany',
   'kontrlaty',
   'laty',
+  'poprzeczki',
 ] as const
 
 export type Etap = (typeof ETAPY)[number]
 
 /** Opis etapu pokazywany w instrukcji. */
 export const OPIS_ETAPU: Record<Etap, { tytul: string; opis: string }> = {
+  stopy: {
+    tytul: 'Stopy fundamentowe',
+    opis: 'Wytycz osie słupów sznurem i wykop stopy poniżej strefy przemarzania. Osadź podstawy słupów dokładnie w osiach i sprawdź przekątne — po zawiązaniu betonu nic już nie przesuniesz.',
+  },
   murlaty: {
     tytul: 'Murłaty',
     opis: 'Ułóż murłaty na wieńcu i zakotw je prętami gwintowanymi. To one przenoszą cały ciężar dachu na mury, więc muszą leżeć równo i być trwale związane z wieńcem.',
   },
   slupy: {
     tytul: 'Słupy',
-    opis: 'Ustaw słupy w miejscach podparcia płatwi. Sprawdź pion każdego słupa, zanim przejdziesz dalej — później poprawianie jest już bardzo trudne.',
+    opis: 'Ustaw słupy w miejscach podparcia. Sprawdź pion każdego słupa i zabezpiecz go zastrzałem montażowym, zanim przejdziesz dalej — później poprawianie jest już bardzo trudne.',
+  },
+  oczepy: {
+    tytul: 'Oczepy',
+    opis: 'Ułóż oczepy na głowicach słupów i sprawdź poziom na całej długości. Dopiero związane oczepem słupy stoją same — do tego momentu wszystko trzyma się na zastrzałach montażowych.',
+  },
+  zastrzaly: {
+    tytul: 'Miecze',
+    opis: 'Wstaw miecze między słupy a oczepy. To one przenoszą parcie wiatru; bez nich rama składa się na bok jak nożyce, nawet jeśli wszystkie połączenia są mocne.',
   },
   platwie: {
     tytul: 'Płatwie',
@@ -74,6 +90,10 @@ export const OPIS_ETAPU: Record<Etap, { tytul: string; opis: string }> = {
   laty: {
     tytul: 'Łaty',
     opis: 'Przybij łaty w rozstawie dobranym do pokrycia. Pierwszą przy okapie i ostatnią pod gąsiorem rozmierz osobno, a resztę rozłóż równo między nimi.',
+  },
+  poprzeczki: {
+    tytul: 'Szczebliny',
+    opis: 'Rozłóż szczebliny na wierzchu i przykręć je od góry. Rozstaw rozmierz od środka ku brzegom — wtedy ewentualna różnica rozejdzie się po obu stronach i nikt jej nie zauważy.',
   },
 }
 

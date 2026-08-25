@@ -195,8 +195,11 @@ export function ViewMaterial({ wynik }: { wynik: Calculation }) {
   )
 }
 
-/** Jedna grupa drewna: elementy o tym samym przekroju plus plan cięcia. */
-function GrupaDrewna({ grupa }: { grupa: TimberGroup }) {
+/**
+ * Jedna grupa drewna: elementy o tym samym przekroju plus plan cięcia.
+ * Wspólna dla zestawienia dachu i wiaty — plan cięcia wygląda tak samo.
+ */
+export function GrupaDrewna({ grupa }: { grupa: TimberGroup }) {
   const { dl } = useDlugosc()
   const sztuk = grupa.items.reduce((s, i) => s + i.count, 0)
 

@@ -9,6 +9,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { RoofInput } from './core/types'
 import { calculate } from './core/materials'
+import type { ShelterInput } from './core/shelter'
+import { calculateShelter } from './core/shelterMaterials'
+import { zbudujModel } from './core/model3d'
+import { zbudujModelWiaty } from './core/shelterModel3d'
 import {
   newProject,
   loadProjects,
@@ -19,25 +23,48 @@ import {
   encodeToUrl,
   decodeFromUrl,
   type Project,
+  type ProjectKind,
 } from './state/project'
 import { ViewDach } from './ui/ViewDach'
 import { ViewKrokwie } from './ui/ViewKrokwie'
 import { ViewMaterial } from './ui/ViewMaterial'
 import { ViewProjekt } from './ui/ViewProjekt'
 import { ViewModel } from './ui/ViewModel'
+import { ViewWiata } from './ui/ViewWiata'
+import { ViewKonstrukcjaWiaty } from './ui/ViewKonstrukcjaWiaty'
+import { ViewMaterialWiaty } from './ui/ViewMaterialWiaty'
 import { Przelacznik } from './ui/controls'
 import { DostawcaJednostek, type Jednostka } from './ui/units'
 import { dataCzas, liczba, mNaMetry } from './ui/format'
 import { SHAPE_LABELS } from './core/defaults'
+import { SHELTER_KIND_LABELS } from './core/shelter'
 
-type Zakladka = 'dach' | 'krokwie' | 'model' | 'material' | 'projekt'
+type Zakladka = 'dach' | 'krokwie' | 'model' | 'material' | 'projekt' | 'wiata' | 'konstrukcja'
 
-const ZAKLADKI: Array<{ id: Zakladka; label: string; ikona: string }> = [
-  { id: 'dach', label: 'Dach', ikona: '📐' },
-  { id: 'krokwie', label: 'Krokwie', ikona: '📏' },
-  { id: 'model', label: 'Model', ikona: '🏠' },
-  { id: 'material', label: 'Materiał', ikona: '🪵' },
-  { id: 'projekt', label: 'Projekt', ikona: '📄' },
+/**
+ * Zakładki zależą od tego, co się liczy. Dach ma import wymiarów z PDF-a,
+ * wiata zamiast tego osobny ekran konstrukcji ze słupami i fundamentem.
+ */
+const ZAKLADKI: Record<ProjectKind, Array<{ id: Zakladka; label: string; ikona: string }>> = {
+  dach: [
+    { id: 'dach', label: 'Dach', ikona: '📐' },
+    { id: 'krokwie', label: 'Krokwie', ikona: '📏' },
+    { id: 'model', label: 'Model', ikona: '🏠' },
+    { id: 'material', label: 'Materiał', ikona: '🪵' },
+    { id: 'projekt', label: 'Projekt', ikona: '📄' },
+  ],
+  wiata: [
+    { id: 'wiata', label: 'Wiata', ikona: '🛖' },
+    { id: 'konstrukcja', label: 'Konstrukcja', ikona: '📏' },
+    { id: 'model', label: 'Model', ikona: '🏠' },
+    { id: 'material', label: 'Materiał', ikona: '🪵' },
+  ],
+}
+
+/** Nazwy rodzajów projektu w przełączniku nagłówka. */
+const RODZAJE: Array<{ id: ProjectKind; label: string }> = [
+  { id: 'dach', label: 'Dach' },
+  { id: 'wiata', label: 'Wiata' },
 ]
 
 export default function App() {
@@ -58,7 +85,18 @@ export default function App() {
   const [projekty, setProjekty] = useState<Project[]>(() => loadProjects())
   const [komunikat, setKomunikat] = useState('')
 
+  const wiata = projekt.kind === 'wiata'
+  const zakladki = ZAKLADKI[projekt.kind]
+
   const wynik = useMemo(() => calculate(projekt.input), [projekt.input])
+  const wynikWiaty = useMemo(() => calculateShelter(projekt.shelter), [projekt.shelter])
+
+  // Model przestrzenny powstaje dopiero wtedy, gdy ktoś go ogląda — przy każdej
+  // zmianie wymiaru budowanie kilkuset brył byłoby czystą stratą.
+  const model = useMemo(() => {
+    if (zakladka !== 'model') return null
+    return wiata ? zbudujModelWiaty(wynikWiaty) : zbudujModel(wynik)
+  }, [zakladka, wiata, wynik, wynikWiaty])
 
   // Ostatni stan pamiętamy zawsze, żeby odświeżenie strony nic nie gubiło.
   useEffect(() => {
@@ -84,6 +122,19 @@ export default function App() {
   const zmien = (patch: Partial<RoofInput>) =>
     setProjekt((p) => ({ ...p, input: { ...p.input, ...patch } }))
 
+  const zmienWiate = (patch: Partial<ShelterInput>) =>
+    setProjekt((p) => ({ ...p, shelter: { ...p.shelter, ...patch } }))
+
+  /**
+   * Przełączenie rodzaju nie kasuje drugiego kompletu danych — projekt trzyma
+   * oba naraz, więc powrót do dachu zastaje go dokładnie tam, gdzie był.
+   */
+  const zmienRodzaj = (kind: ProjectKind) => {
+    if (kind === projekt.kind) return
+    setProjekt((p) => ({ ...p, kind }))
+    setZakladka(kind === 'wiata' ? 'wiata' : 'dach')
+  }
+
   const zapisz = () => {
     setProjekty(saveProject(projekt))
     setKomunikat('Projekt zapisany.')
@@ -92,7 +143,7 @@ export default function App() {
   const otworz = (p: Project) => {
     setProjekt(p)
     setOknoProjektow(false)
-    setZakladka('dach')
+    setZakladka(p.kind === 'wiata' ? 'wiata' : 'dach')
   }
 
   const usun = (id: string) => {
@@ -109,12 +160,26 @@ export default function App() {
           </span>
         </div>
 
+        <div className="rzad" role="group" aria-label="Rodzaj konstrukcji">
+          {RODZAJE.map((r) => (
+            <button
+              key={r.id}
+              type="button"
+              className={projekt.kind === r.id ? 'przycisk glowny' : 'przycisk'}
+              aria-pressed={projekt.kind === r.id}
+              onClick={() => zmienRodzaj(r.id)}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+
         <input
           className="nazwa-projektu"
           value={projekt.name}
           onChange={(e) => setProjekt((p) => ({ ...p, name: e.target.value }))}
           aria-label="Nazwa projektu"
-          placeholder="Nazwa dachu"
+          placeholder={wiata ? 'Nazwa wiaty' : 'Nazwa dachu'}
         />
 
         <div className="naglowek-akcje">
@@ -149,7 +214,7 @@ export default function App() {
       )}
 
       <div className="zakladki" role="tablist">
-        {ZAKLADKI.map((z) => (
+        {zakladki.map((z) => (
           <button
             key={z.id}
             type="button"
@@ -206,13 +271,44 @@ export default function App() {
         </div>
 
         <DostawcaJednostek jednostka={jednostka}>
-          {zakladka === 'dach' && (
+          {!wiata && zakladka === 'dach' && (
             <ViewDach input={projekt.input} onChange={zmien} wyjasnienia={wyjasnienia} />
           )}
-          {zakladka === 'krokwie' && <ViewKrokwie wynik={wynik} wyjasnienia={wyjasnienia} />}
-          {zakladka === 'model' && <ViewModel wynik={wynik} nazwaProjektu={projekt.name} />}
-          {zakladka === 'material' && <ViewMaterial wynik={wynik} />}
-          {zakladka === 'projekt' && <ViewProjekt input={projekt.input} onChange={zmien} />}
+          {!wiata && zakladka === 'krokwie' && (
+            <ViewKrokwie wynik={wynik} wyjasnienia={wyjasnienia} />
+          )}
+          {!wiata && zakladka === 'material' && <ViewMaterial wynik={wynik} />}
+          {!wiata && zakladka === 'projekt' && (
+            <ViewProjekt input={projekt.input} onChange={zmien} />
+          )}
+
+          {wiata && zakladka === 'wiata' && (
+            <ViewWiata input={projekt.shelter} onChange={zmienWiate} wyjasnienia={wyjasnienia} />
+          )}
+          {wiata && zakladka === 'konstrukcja' && (
+            <ViewKonstrukcjaWiaty wynik={wynikWiaty} wyjasnienia={wyjasnienia} />
+          )}
+          {wiata && zakladka === 'material' && <ViewMaterialWiaty wynik={wynikWiaty} />}
+
+          {zakladka === 'model' && model && (
+            <ViewModel
+              model={model}
+              nazwaProjektu={projekt.name}
+              etykietaCalosci={wiata ? 'Cała wiata' : 'Cały dach'}
+              opisPlotna={
+                wiata ? 'Przestrzenny model wiaty' : 'Przestrzenny model więźby dachowej'
+              }
+              wskazowka={
+                wiata ? (
+                  <>
+                    Model pokazuje rozmieszczenie i wymiary elementów wraz ze stopami
+                    fundamentowymi. Kąty cięć i sposób osadzenia słupa znajdziesz
+                    w zakładce „Konstrukcja".
+                  </>
+                ) : undefined
+              }
+            />
+          )}
         </DostawcaJednostek>
 
         <StopkaOdpowiedzialnosci />
@@ -224,10 +320,10 @@ export default function App() {
           biezacy={projekt}
           onOtworz={otworz}
           onUsun={usun}
-          onNowy={() => {
-            setProjekt(newProject())
+          onNowy={(kind) => {
+            setProjekt(newProject(undefined, kind))
             setOknoProjektow(false)
-            setZakladka('dach')
+            setZakladka(kind === 'wiata' ? 'wiata' : 'dach')
           }}
           onZamknij={() => setOknoProjektow(false)}
         />
@@ -246,12 +342,22 @@ function NaglowekWydruku({ projekt }: { projekt: Project }) {
     <div style={{ display: 'none' }} className="tylko-druk">
       <h1 style={{ margin: 0, fontSize: '16pt' }}>{projekt.name}</h1>
       <p style={{ margin: '2pt 0 12pt', fontSize: '9pt' }}>
-        {SHAPE_LABELS[projekt.input.shape]} · rozpiętość {mNaMetry(projekt.input.span)} m ·
-        długość {mNaMetry(projekt.input.length)} m · nachylenie{' '}
-        {liczba(projekt.input.pitchDeg, 0)}° · zestawienie z {dataCzas(new Date().toISOString())}
+        {opisProjektu(projekt)} · nachylenie{' '}
+        {liczba(projekt.kind === 'wiata' ? projekt.shelter.pitchDeg : projekt.input.pitchDeg, 0)}° ·
+        zestawienie z {dataCzas(new Date().toISOString())}
       </p>
     </div>
   )
+}
+
+/** Jednolinijkowy opis projektu — ten sam na wydruku i na liście zapisanych. */
+function opisProjektu(projekt: Project): string {
+  if (projekt.kind === 'wiata') {
+    const w = projekt.shelter
+    return `${SHELTER_KIND_LABELS[w.kind].label} · ${mNaMetry(w.width)} × ${mNaMetry(w.length)} m`
+  }
+  const d = projekt.input
+  return `${SHAPE_LABELS[d.shape]} · ${mNaMetry(d.span)} × ${mNaMetry(d.length)} m`
 }
 
 /** Zastrzeżenie — kalkulator liczy geometrię, nie zastępuje konstruktora. */
@@ -287,7 +393,7 @@ function OknoProjektow({
   biezacy: Project
   onOtworz: (p: Project) => void
   onUsun: (id: string) => void
-  onNowy: () => void
+  onNowy: (kind: ProjectKind) => void
   onZamknij: () => void
 }) {
   return (
@@ -306,8 +412,7 @@ function OknoProjektow({
                 <div className="opis">
                   <strong>{p.name}</strong>
                   <span>
-                    {SHAPE_LABELS[p.input.shape]} · {mNaMetry(p.input.span)} ×{' '}
-                    {mNaMetry(p.input.length)} m · {dataCzas(p.updatedAt)}
+                    {opisProjektu(p)} · {dataCzas(p.updatedAt)}
                     {p.id === biezacy.id ? ' · otwarty' : ''}
                   </span>
                 </div>
@@ -327,8 +432,11 @@ function OknoProjektow({
           </ul>
         )}
         <div className="okno-akcje">
-          <button type="button" className="przycisk" onClick={onNowy}>
+          <button type="button" className="przycisk" onClick={() => onNowy('dach')}>
             Nowy dach
+          </button>
+          <button type="button" className="przycisk" onClick={() => onNowy('wiata')}>
+            Nowa wiata
           </button>
           <button type="button" className="przycisk glowny" onClick={onZamknij}>
             Zamknij

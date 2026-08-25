@@ -2,7 +2,9 @@
 
 Aplikacja licząca więźbę dachową: geometria krokwi, zaciosy, naroża dachu
 kopertowego, zestawienie materiału do zakupu i model przestrzenny z instrukcją
-montażu. Działa jako strona i jako aplikacja instalowana na telefonie (PWA).
+montażu. Druga gałąź liczy **wiaty, zadaszenia przyścienne i pergole** — słupy,
+oczepy, miecze, stopy fundamentowe i odwodnienie. Działa jako strona i jako
+aplikacja instalowana na telefonie (PWA).
 
 Odbiorcy: cieśla na budowie, osoba robiąca wycenę, klient bez wiedzy fachowej
 i uczeń zawodu. Stąd duże kontrolki, wysoki kontrast i przełącznik „Pokaż
@@ -13,7 +15,7 @@ wyjaśnienia" z wyprowadzeniem wzorów.
 ```bash
 npm run dev      # serwer deweloperski
 npm run build    # wersja produkcyjna do dist/
-npm test         # 111 testów
+npm test         # 188 testów
 python tools/formularz-docx.py    # formularz konsultacyjny, tura 1
 python tools/formularz2-docx.py   # tura 2
 ```
@@ -24,9 +26,13 @@ python tools/formularz2-docx.py   # tura 2
 src/core/    obliczenia — czysty TypeScript, ZERO importów z React
   geometry.ts   połacie, zaciosy, naroża koperty, jętki
   cutting.ts    plan cięcia i objętości drewna
-  materials.ts  zestawienie materiału, funkcja calculate()
+  materials.ts  zestawienie materiału dachu, funkcja calculate()
   model3d.ts    zamiana wyników na bryły w przestrzeni
   defaults.ts   wartości domyślne i słowniki
+  shelter.ts          model danych i geometria wiaty: słupy, miecze, stopy
+  shelterMaterials.ts zestawienie wiaty, funkcja calculateShelter()
+  shelterModel3d.ts   model przestrzenny wiaty w formacie modułu dachowego
+  shelterPresets.ts   gotowe modele wiat, zadaszeń i pergoli do wczytania
 src/ui/      interfejs, rysunki SVG, silnik 3D na płótnie
 src/pdf/     odczyt wymiarów z PDF-a
 src/state/   zapis projektów i pakowanie projektu do adresu URL
@@ -36,6 +42,31 @@ tools/       generatory dokumentów .docx (Python, python-docx)
 Rdzeń nie wie nic o interfejsie. Ten sam kod liczy podgląd na ekranie, wydruk,
 model 3D i testy — dzięki temu nie mogą się rozjechać. **Nie przenoś obliczeń
 do komponentów.**
+
+## Dwie gałęzie: dach i wiata
+
+Przełącznik w nagłówku wybiera, co liczymy. Projekt trzyma oba komplety danych
+naraz (`input` dla dachu, `shelter` dla wiaty) i pole `kind`, więc przełączenie
+niczego nie kasuje, a zapis i link działają dla obu.
+
+Zakładki dachu: Dach · Krokwie · Model · Materiał · Projekt.
+Zakładki wiaty: Wiata · Konstrukcja · Model · Materiał.
+
+Wiata **korzysta z modułów dachowych tam, gdzie problem jest ten sam**: plan
+cięcia (`cutting.ts`), grupowanie po przekrojach i naddatki (`groupBySection`,
+`withAllowance` z `materials.ts`), rozkład elementów (`layoutRafters`), silnik
+3D i widok modelu. Nie dubluj tego kodu — jeśli coś przyda się obu gałęziom,
+wyeksportuj to z modułu dachowego zamiast przepisywać.
+
+Gotowe modele (`shelterPresets.ts`) są punktem wyjścia do zmian, nie katalogiem
+produktów. **Każdy musi liczyć się bez ostrzeżeń** — pilnuje tego test; przy
+dokładaniu nowego sprawdź prześwit pod okapem, minimalny spadek dla pokrycia
+i czy najdłuższy nierozdzielny element mieści się w belce handlowej.
+
+Etapy montażu w `model3d.ts` (`ETAPY`) są **wspólne dla obu gałęzi** i ułożone
+w kolejności stawiania: stopy → murłaty → słupy → oczepy → płatwie → miecze →
+krokwie → jętki → wymiany → kontrłaty → łaty → szczebliny. Model pokazuje tylko
+te etapy, w których faktycznie coś stoi.
 
 ## Konwencje
 
@@ -88,5 +119,8 @@ Bieżący stan prac i otwarte wątki: **`docs/STAN.md`**.
 ## Zakres odpowiedzialności
 
 Kalkulator liczy geometrię i ilości. Nie sprawdza nośności ani nie dobiera
-przekrojów — to musi wynikać z projektu konstrukcyjnego. Ta granica jest
+przekrojów — to musi wynikać z projektu konstrukcyjnego. Przy wiacie dochodzi
+druga granica: liczymy objętość stóp fundamentowych, ale nie sprawdzamy
+nośności gruntu ani wpływu wiatru — wiata bez ścian jest na parcie wiatru
+znacznie wrażliwsza niż dach na murach. Ta granica jest
 świadoma i komunikowana w interfejsie; jeśli ma się zmienić, to decyzja Marka.
