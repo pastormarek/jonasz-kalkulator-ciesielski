@@ -15,6 +15,7 @@
  */
 
 import type { Calculation } from './materials'
+import type { Covering, RoofInput } from './types'
 import { deg2rad } from './geometry'
 
 /** Punkt w przestrzeni [mm]. */
@@ -175,6 +176,22 @@ export interface Belka {
   b: number
   /** Wysokość przekroju [mm]. */
   h: number
+  /**
+   * Ścięcie czoła końcowego [mm] — o tyle GÓRNA krawędź jest cofnięta
+   * względem dolnej. Zero znaczy czoło prostopadłe do osi.
+   *
+   * Potrzebne przy zakładce w kalenicy: koniec krokwi ścina się tam
+   * równolegle do boku krokwi przeciwnej, a nie na płasko.
+   */
+  scinaKonca?: number
+  /**
+   * Ścięcie czoła początkowego [mm], liczone tak samo: o tyle górna krawędź
+   * jest cofnięta w stronę drugiego końca.
+   *
+   * Tak powstaje pionowe cięcie na końcu krokwi przy okapie — belka biegnie
+   * po skosie, więc czoło prostopadłe do osi nie jest pionowe.
+   */
+  scinaStartu?: number
 }
 
 /** Linia wymiarowa pokazywana obok modelu. */
@@ -199,11 +216,37 @@ export interface PolacPokrycia {
   rogi: [Punkt3, Punkt3, Punkt3, Punkt3]
 }
 
+/**
+ * Rysunek materiału pokrycia — na tyle, ile trzeba, żeby połać nie była
+ * jednolitą plamą koloru.
+ *
+ * Cieśla poprosił, żeby pokazać fakturę „łącznie z gąsiorem na szczycie":
+ * fale blachy biegną wzdłuż spadku, rzędy dachówek w poprzek, a moduł
+ * bierze się z materiału, nie z upodobania rysującego.
+ */
+export interface FakturaPokrycia {
+  /** Odstęp podziałów biegnących wzdłuż spadku [mm]; 0 = brak podziału. */
+  modulWzdluz: number
+  /** Odstęp rzędów równoległych do okapu [mm]; 0 = brak podziału. */
+  modulPoprzek: number
+}
+
+/** Gąsior nakrywający kalenicę — półwalec o zadanej osi. */
+export interface Gasior {
+  od: Punkt3
+  do: Punkt3
+  promien: number
+}
+
 /** Kompletny model przestrzenny dachu. */
 export interface Model3D {
   belki: Belka[]
   /** Połacie pokrycia — puste tam, gdzie pokrycia nie ma (pergola, mebel). */
   polacie?: PolacPokrycia[]
+  /** Rysunek materiału na połaci — brak znaczy gładką płaszczyznę. */
+  faktura?: FakturaPokrycia | null
+  /** Gąsior na kalenicy — tylko tam, gdzie kalenica w ogóle jest. */
+  gasior?: Gasior | null
   wymiary: Wymiar3[]
   /** Środek bryły — punkt, wokół którego obraca się widok. */
   srodek: Punkt3
@@ -286,6 +329,10 @@ export function zbudujModel(w: Calculation): Model3D {
 
   // Przy zakładce krokiew nie kończy się na osi kalenicy, tylko przechodzi
   // za nią i mija się z krokwią przeciwną.
+  //
+  // `overshootRun` opisuje, dokąd dochodzi DOLNA KRAWĘDŹ krokwi — to ona
+  // spotyka górną krawędź krokwi przeciwnej. Skoro linią bazową modelu jest
+  // właśnie dolna krawędź (patrz niżej), liczba wchodzi tu wprost.
   const przejscie = w.ridge.overshootRun
   // Bryła prostopadłościenna nie pokaże wybrania na pół grubości, więc żeby
   // krokwie nie przenikały się w rysunku nawzajem, rozsuwamy je o ćwierć
@@ -293,23 +340,67 @@ export function zbudujModel(w: Calculation): Model3D {
   // dokładnie taki, jaki wyszedł z rozkładu.
   const rozsuniecie = przejscie > 0 ? input.rafterSection.b / 4 : 0
 
+  /**
+   * Ścięcie końca krokwi przy zakładce (odpowiedzi Jonasza, punkt 89):
+   * „równolegle do boku krokwi przeciwnej i tak też powinno być na rysunku 3D".
+   *
+   * Krokiew przeciwna biegnie pod kątem −α, więc płaszczyzna cięcia jest
+   * odchylona od prostopadłej do osi o (90° − 2α). Górna krawędź jest przez
+   * to krótsza od dolnej o h ÷ tg 2α — i właśnie tak wychodzi reguła cieśli,
+   * że dolna krawędź dochodzi aż do górnej krawędzi kolejnej krokwi.
+   *
+   * Przy 45° obie krokwie stoją do siebie prostopadle i ścięcie znika samo.
+   */
+  const tan2a = Math.tan(2 * a)
+  const scieciePrzyKalenicy =
+    przejscie > 0 && Math.abs(tan2a) > 1e-9 ? input.rafterSection.h / tan2a : 0
+
+  /**
+   * Pionowe cięcie na końcu krokwi przy okapie.
+   *
+   * Krokiew biegnie po skosie, więc czoło prostopadłe do osi stoi ukośnie —
+   * a przy okapie tnie się pionowo, żeby deska podrynnowa przylegała płasko.
+   * Żeby czoło stanęło w pionie, górny róg trzeba cofnąć o h × tg α.
+   *
+   * Model pomija drobny dziób z cięcia poziomego: zabiera on tylko dolny
+   * narożnik na kilku centymetrach, a bryła o ośmiu wierzchołkach nie odda
+   * łamanego czoła. Dokładne wymiary obu cięć są na zakładce Krokwie.
+   */
+  const scieciePrzyOkapie = input.rafterSection.h * Math.tan(a)
+
+  /**
+   * Przesunięcie z linii bazowej na oś krokwi.
+   *
+   * Rdzeń liczy wszystko po DOLNEJ krawędzi krokwi: to ona startuje
+   * w zewnętrznym narożu murłaty i to jej długość podaje zestawienie.
+   * Model opisuje belki osiami, więc oś trzeba unieść o pół wysokości
+   * przekroju prostopadle do połaci.
+   *
+   * Wcześniej oś biegła wprost po linii bazowej, przez co krokiew tonęła
+   * w murłacie do połowy grubości, a dach był o te pół wysokości za niski.
+   */
+  const naOs = input.rafterSection.h / 2
+
   for (const znak of kierunkiPolaci) {
     const yOparcia = znak === 1 ? 0 : span
     for (const x of zakresKrokwi) {
       const yOkap = yOparcia - znak * eaves
       const xKrokwi = x + znak * rozsuniecie
+      const gora = gornaPolaci(znak)
       dodaj({
         nazwa: 'Krokiew',
         etap: 'krokwie',
-        start: p3(xKrokwi, yOkap, -eaves * Math.tan(a)),
-        koniec: p3(
-          xKrokwi,
-          kalenicaY + znak * przejscie,
-          rise + przejscie * Math.tan(a),
+        start: przesun(p3(xKrokwi, yOkap, -eaves * Math.tan(a)), gora, naOs),
+        koniec: przesun(
+          p3(xKrokwi, kalenicaY + znak * przejscie, rise + przejscie * Math.tan(a)),
+          gora,
+          naOs,
         ),
-        gora: gornaPolaci(znak),
+        gora,
         b: input.rafterSection.b,
         h: input.rafterSection.h,
+        scinaKonca: scieciePrzyKalenicy,
+        scinaStartu: scieciePrzyOkapie,
       })
     }
   }
@@ -372,6 +463,8 @@ export function zbudujModel(w: Calculation): Model3D {
   return {
     belki,
     polacie,
+    faktura: fakturaDla(input.covering, input.battenSpacing),
+    gasior: isShed ? null : gasiorKalenicy(w, span, dlugosc, rise, a, kalenicaY, isHip),
     wymiary,
     srodek: p3(dlugosc / 2, span / 2, rise / 2),
     promien: Math.max(dlugosc, span, rise) * 0.75 + eaves,
@@ -579,9 +672,10 @@ function dodajLaty(
 /**
  * Podnosi kontrłaty i łaty ponad krokwie.
  *
- * Model buduje je najpierw na osi krokwi, bo tak najprościej policzyć ich
- * przebieg. Tutaj przesuwamy je prostopadle do połaci: kontrłatę na wierzch
- * krokwi, a łatę jeszcze wyżej, na wierzch kontrłaty.
+ * Model buduje je najpierw na LINII BAZOWEJ, czyli na dolnej krawędzi krokwi,
+ * bo tak najprościej policzyć ich przebieg. Tutaj przesuwamy je prostopadle
+ * do połaci: kontrłatę na wierzch krokwi, a łatę jeszcze wyżej, na wierzch
+ * kontrłaty. Stąd pełna wysokość krokwi w obu wzorach, a nie jej połowa.
  */
 function podniesWarstwy(
   belki: Belka[],
@@ -590,8 +684,8 @@ function podniesWarstwy(
 ): void {
   for (const b of belki) {
     let podnies = 0
-    if (b.etap === 'kontrlaty') podnies = (wysokoscKrokwi + b.h) / 2
-    else if (b.etap === 'laty') podnies = wysokoscKrokwi / 2 + wysokoscKontrlaty + b.h / 2
+    if (b.etap === 'kontrlaty') podnies = wysokoscKrokwi + b.h / 2
+    else if (b.etap === 'laty') podnies = wysokoscKrokwi + wysokoscKontrlaty + b.h / 2
     if (podnies === 0) continue
 
     b.start = przesun(b.start, b.gora, podnies)
@@ -686,7 +780,7 @@ function zbudujPolacie(
   isHip: boolean,
 ): PolacPokrycia[] {
   const { input } = w
-  const ponadOsia = input.rafterSection.h / 2 + GRUBOSC_LACENIA
+  const ponadOsia = gruboscLacenia(input)
   const sin = Math.sin(a)
   const cos = Math.cos(a)
   const zOkapu = -eaves * Math.tan(a)
@@ -717,13 +811,21 @@ function zbudujPolacie(
     const kalenicaOd = isHip ? span / 2 : -wysuniecie
     const kalenicaDo = isHip ? dlugosc - span / 2 : dlugosc + wysuniecie
 
+    // Przy kalenicy obie połacie muszą spotkać się w JEDNYM punkcie.
+    // Podniesienie ich prostopadle do własnej połaci rozsuwało je na boki
+    // i między pokryciem zostawała szczelina szeroka na dwie warstwy łat.
+    // Płaszczyzny pokrycia przecinają się dokładnie nad osią kalenicy,
+    // wyżej o grubość łacenia podzieloną przez cosinus kąta.
+    const zKalenicy = isShed ? rise + ponadOsia * cos : rise + ponadOsia / cos
+    const yKalenicy = isShed ? kalenicaY - znak * ponadOsia * sin : kalenicaY
+
     polacie.push({
       nazwa: znak === 1 ? 'Połać przednia' : 'Połać tylna',
       rogi: [
         naWierzch(okapOd, yOkap, zOkapu, n),
         naWierzch(okapDo, yOkap, zOkapu, n),
-        naWierzch(kalenicaDo, kalenicaY, rise, n),
-        naWierzch(kalenicaOd, kalenicaY, rise, n),
+        p3(kalenicaDo, yKalenicy, zKalenicy),
+        p3(kalenicaOd, yKalenicy, zKalenicy),
       ],
     })
   }
@@ -751,8 +853,78 @@ function zbudujPolacie(
   return polacie
 }
 
-/** Grubość warstwy kontrłat i łat pod pokryciem [mm]. */
-const GRUBOSC_LACENIA = 65
+/**
+ * Jak wygląda materiał pokrycia z odległości, z której ogląda się dach.
+ *
+ * Dachówka układa się w rzędy równoległe do okapu, a rozstaw tych rzędów to
+ * dokładnie rozstaw łat — więc bierzemy go z danych, a nie z oka. Blachy
+ * profilowane mają fale biegnące wzdłuż spadku i moduł niezależny od łacenia.
+ * Gont kładzie się na pełnym poszyciu w gęstych pasach.
+ */
+function fakturaDla(covering: Covering, rozstawLat: number): FakturaPokrycia | null {
+  const rzedy = Math.max(150, rozstawLat)
+  switch (covering) {
+    // Rzędy dachówek wyznaczają łaty, a szerokość jednej dachówki to ok. 30 cm.
+    case 'dachowka-ceramiczna':
+    case 'dachowka-betonowa':
+      return { modulWzdluz: 300, modulPoprzek: rzedy }
+    // Blachodachówka ma ten sam rytm rzędów, ale arkusz jest szeroki.
+    case 'blachodachowka':
+      return { modulWzdluz: 1100, modulPoprzek: rzedy }
+    // Blachy profilowane idą jednym arkuszem od okapu po kalenicę — widać
+    // tylko fale biegnące wzdłuż spadku.
+    case 'blacha-trapezowa':
+      return { modulWzdluz: 200, modulPoprzek: 0 }
+    case 'blacha-na-rabek':
+      return { modulWzdluz: 500, modulPoprzek: 0 }
+    case 'gont-bitumiczny':
+      return { modulWzdluz: 1000, modulPoprzek: 150 }
+    default:
+      return null
+  }
+}
+
+/** Promień gąsiora [mm] — typowy gąsior ceramiczny ma ok. 22 cm szerokości. */
+const PROMIEN_GASIORA = 110
+
+/**
+ * Gąsior nakrywający kalenicę. Siedzi na wierzchu łacenia, więc podnosimy go
+ * o tę samą warstwę, na której leży pokrycie — inaczej tonąłby w połaci.
+ */
+function gasiorKalenicy(
+  w: Calculation,
+  span: number,
+  dlugosc: number,
+  rise: number,
+  a: number,
+  kalenicaY: number,
+  isHip: boolean,
+): Gasior {
+  const ponad = gruboscLacenia(w.input)
+  // Przy kopercie kalenica jest krótsza od budynku o dwa biegi naroży;
+  // przy dwuspadowym sięga poza szczyt tak samo jak połać.
+  const od = isHip ? span / 2 : -w.input.gableOverhang
+  const doX = isHip ? dlugosc - span / 2 : dlugosc + w.input.gableOverhang
+  const z = rise + ponad / Math.cos(a)
+  return {
+    od: p3(od, kalenicaY, z),
+    do: p3(doX, kalenicaY, z),
+    promien: PROMIEN_GASIORA,
+  }
+}
+
+/**
+ * Odległość spodu pokrycia od linii bazowej krokwi [mm].
+ *
+ * Liczona z przekrojów, nie przyjęta z góry. Wcześniej była tu stała 65 mm —
+ * mniej niż kontrłata i łata razem — więc łaty przebijały przez połać
+ * i na modelu wyglądało to tak, jakby wchodziły w krokwie. Cieśla zwrócił
+ * na to uwagę wprost: „łata zawsze jest przybita na kontrłatę i nigdy
+ * w krokiew nie wchodzi".
+ */
+function gruboscLacenia(input: RoofInput): number {
+  return input.rafterSection.h + input.counterBattenSection.h + input.battenSection.h
+}
 
 export function wierzcholki(b: Omit<Belka, 'id'>): Punkt3[] {
   const os = normalizuj(odejmij(b.koniec, b.start))
@@ -765,15 +937,25 @@ export function wierzcholki(b: Omit<Belka, 'id'>): Punkt3[] {
   const rog = (baza: Punkt3, zB: number, zH: number): Punkt3 =>
     przesun(przesun(baza, bok, zB * polB), gora, zH * polH)
 
+  // Skośne czoła: górne rogi przesuwamy wzdłuż osi, dolne zostają na miejscu.
+  // Na końcu cofamy je do tyłu, na początku — do przodu, czyli w obu wypadkach
+  // w stronę drugiego czoła.
+  const scinK = b.scinaKonca ?? 0
+  const scinS = b.scinaStartu ?? 0
+  const rogS = (zB: number, zH: number): Punkt3 =>
+    zH > 0 ? przesun(rog(b.start, zB, zH), os, scinS) : rog(b.start, zB, zH)
+  const rogK = (zB: number, zH: number): Punkt3 =>
+    zH > 0 ? przesun(rog(b.koniec, zB, zH), os, -scinK) : rog(b.koniec, zB, zH)
+
   return [
-    rog(b.start, -1, -1),
-    rog(b.start, 1, -1),
-    rog(b.start, 1, 1),
-    rog(b.start, -1, 1),
-    rog(b.koniec, -1, -1),
-    rog(b.koniec, 1, -1),
-    rog(b.koniec, 1, 1),
-    rog(b.koniec, -1, 1),
+    rogS(-1, -1),
+    rogS(1, -1),
+    rogS(1, 1),
+    rogS(-1, 1),
+    rogK(-1, -1),
+    rogK(1, -1),
+    rogK(1, 1),
+    rogK(-1, 1),
   ]
 }
 

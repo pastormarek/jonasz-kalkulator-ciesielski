@@ -14,6 +14,18 @@ const dlugosc = (b: Belka) =>
 const wg = (m: ReturnType<typeof model>, nazwa: string) =>
   m.belki.filter((b) => b.nazwa === nazwa)
 
+/** Dolna krawędź belki — w krokwi to linia bazowa wszystkich obliczeń. */
+function dolnaKrawedz(b: Belka) {
+  const v = wierzcholki(b)
+  return { od: v[0], do: v[4] }
+}
+
+/** Górna krawędź belki, po tej samej stronie przekroju co dolna. */
+function gornaKrawedz(b: Belka) {
+  const v = wierzcholki(b)
+  return { od: v[3], do: v[7] }
+}
+
 describe('model przestrzenny', () => {
   it('powstaje z domyślnego dachu i ma wszystkie warstwy', () => {
     const m = model()
@@ -33,14 +45,23 @@ describe('model przestrzenny', () => {
     for (const b of murlaty) expect(dlugosc(b)).toBeCloseTo(12000, 0)
   })
 
-  it('krokwie sięgają od okapu do kalenicy', () => {
+  // Rdzeń liczy wszystko po DOLNEJ krawędzi krokwi — to ona startuje
+  // w zewnętrznym narożu murłaty i jej długość podaje zestawienie. Dlatego
+  // sprawdzamy krawędź, a nie oś: oś biegnie pół wysokości przekroju wyżej.
+  it('dolna krawędź krokwi sięga od okapu do kalenicy', () => {
     const m = model({ span: 8000, pitchDeg: 35, eaves: 600, ridgeJoint: 'czolowe' })
-    const krokiew = wg(m, 'Krokiew')[0]
-    // Zaczyna się poza murłatą, czyli przy ujemnym Y.
-    expect(krokiew.start.y).toBeCloseTo(-600, 0)
-    // Kończy się w połowie rozpiętości, na wysokości kalenicy.
-    expect(krokiew.koniec.y).toBeCloseTo(4000, 0)
-    expect(krokiew.koniec.z).toBeGreaterThan(0)
+    const k = dolnaKrawedz(wg(m, 'Krokiew')[0])
+    expect(k.od.y).toBeCloseTo(-600, 0)
+    expect(k.do.y).toBeCloseTo(4000, 0)
+    expect(k.do.z).toBeGreaterThan(0)
+  })
+
+  // Krokiew ma leżeć NA murłacie, a nie przechodzić przez jej środek.
+  it('dolna krawędź krokwi opiera się o naroże murłaty', () => {
+    const m = model({ span: 8000, pitchDeg: 35, eaves: 600, ridgeJoint: 'czolowe' })
+    const k = dolnaKrawedz(wg(m, 'Krokiew')[0])
+    const t = (0 - k.od.y) / (k.do.y - k.od.y)
+    expect(k.od.z + (k.do.z - k.od.z) * t).toBeCloseTo(0, 0)
   })
 
   it('przy zakładce krokwie mijają się w kalenicy', () => {
@@ -49,17 +70,41 @@ describe('model przestrzenny', () => {
     // Każda krokiew przechodzi za oś kalenicy o tyle, ile wyliczył rdzeń.
     const przejscie = w.ridge.overshootRun
     expect(przejscie).toBeGreaterThan(0)
-    const kalenica = wg(m, 'Krokiew').map((b) => b.koniec.y)
+    const kalenica = wg(m, 'Krokiew').map((b) => dolnaKrawedz(b).do.y)
     expect(Math.max(...kalenica)).toBeCloseTo(4000 + przejscie, 0)
     expect(Math.min(...kalenica)).toBeCloseTo(4000 - przejscie, 0)
+  })
+
+  // Reguła podana przez cieślę: „patrząc na dolną krawędź krokwi, ona dochodzi
+  // aż do górnej krawędzi kolejnej krokwi w szczycie". Sprawdzamy ją na bryłach,
+  // niezależnie od wzoru, którym liczy ją rdzeń.
+  it('dolna krawędź krokwi kończy się na górnej krawędzi krokwi przeciwnej', () => {
+    const m = model({ ridgeJoint: 'zakladka' })
+    const krokwie = wg(m, 'Krokiew')
+    const a = krokwie[0]
+    const b = krokwie.find(
+      (k) => Math.abs(k.start.x - a.start.x) < 60 && k.koniec.y !== a.koniec.y,
+    )!
+    const koniecA = dolnaKrawedz(a).do
+    const g = gornaKrawedz(b)
+
+    // Odległość punktu od prostej w płaszczyźnie przekroju.
+    const kier = { y: g.od.y - g.do.y, z: g.od.z - g.do.z }
+    const dl = Math.hypot(kier.y, kier.z)
+    const v = { y: koniecA.y - g.do.y, z: koniecA.z - g.do.z }
+    const odchylenie = Math.abs(v.y * (-kier.z / dl) + v.z * (kier.y / dl))
+    expect(odchylenie).toBeLessThan(1)
   })
 
   it('długość krokwi w modelu zgadza się z obliczeniami', () => {
     const w = calculate(defaultInput())
     const m = zbudujModel(w)
-    const krokiew = wg(m, 'Krokiew')[0]
+    const k = dolnaKrawedz(wg(m, 'Krokiew')[0])
     // Zakładka wydłuża krokiew ponad geometrię samej połaci.
-    expect(dlugosc(krokiew)).toBeCloseTo(w.slope.rafterTotal + w.ridge.extension, 0)
+    expect(Math.hypot(k.do.x - k.od.x, k.do.y - k.od.y, k.do.z - k.od.z)).toBeCloseTo(
+      w.slope.rafterTotal + w.ridge.extension,
+      0,
+    )
   })
 
   it('krokwie stoją w rozstawie wyliczonym przez rdzeń', () => {
@@ -207,5 +252,76 @@ describe('połacie pokrycia', () => {
     const model = zbudujModel(calculate(input))
     const najnizszy = Math.min(...model.polacie!.flatMap((p) => p.rogi.map((r) => r.y)))
     expect(najnizszy).toBeLessThan(-input.eaves + 1)
+  })
+})
+
+describe('wygląd pokrycia z czwartej tury', () => {
+  // Punkt 103: „łata zawsze jest przybita na kontrłatę i nigdy w krokiew nie
+  // wchodzi". Warstwy muszą się układać jedna na drugiej, bez przenikania.
+  it('łaty leżą nad kontrłatami, a pokrycie nad wszystkim', () => {
+    const w = calculate(defaultInput())
+    const m = zbudujModel(w)
+    const krokiew = wg(m, 'Krokiew').find((b) => b.start.y < 0)!
+    // Warstwy mierzymy wzdłuż normalnej połaci — pionowo nic tu nie wychodzi,
+    // bo wszystko jest pochylone pod kątem dachu.
+    const n = krokiew.gora
+    const rzut = (p: { x: number; y: number; z: number }) => p.x * n.x + p.y * n.y + p.z * n.z
+
+    const kontrlata = wg(m, 'Kontrłata').find((b) => b.start.y < 0)!
+    const lata = wg(m, 'Łata').find((b) => b.start.y < 0)!
+    const { rafterSection, counterBattenSection, battenSection } = w.input
+
+    expect(rzut(kontrlata.start) - rzut(krokiew.start)).toBeCloseTo(
+      rafterSection.h / 2 + counterBattenSection.h / 2,
+      6,
+    )
+    expect(rzut(lata.start) - rzut(kontrlata.start)).toBeCloseTo(
+      counterBattenSection.h / 2 + battenSection.h / 2,
+      6,
+    )
+
+    // Pokrycie leży na wierzchu łat — inaczej łaty przebijałyby przez dach.
+    const polac = m.polacie!.find((p) => rzut(p.rogi[0]) > 0)!
+    expect(rzut(polac.rogi[0]) - rzut(krokiew.start)).toBeCloseTo(
+      rafterSection.h / 2 + counterBattenSection.h + battenSection.h,
+      6,
+    )
+  })
+
+  // Punkt 106: pokazać materiał, „łącznie z gąsiorem na szczycie".
+  it('rysunek materiału zależy od pokrycia', () => {
+    const dachowka = zbudujModel(calculate({ ...defaultInput(), covering: 'dachowka-ceramiczna' }))
+    // Dachówka układa się w rzędy wyznaczone przez łaty.
+    expect(dachowka.faktura?.modulPoprzek).toBe(defaultInput().battenSpacing)
+
+    // Blacha idzie jednym arkuszem od okapu po kalenicę — widać tylko fale.
+    const blacha = zbudujModel(calculate({ ...defaultInput(), covering: 'blacha-trapezowa' }))
+    expect(blacha.faktura?.modulPoprzek).toBe(0)
+    expect(blacha.faktura?.modulWzdluz).toBeGreaterThan(0)
+
+    expect(zbudujModel(calculate({ ...defaultInput(), covering: 'inne' })).faktura).toBeNull()
+  })
+
+  it('gąsior nakrywa kalenicę i sięga jej całej długości', () => {
+    const m = zbudujModel(calculate({ ...defaultInput(), span: 8000, length: 12000 }))
+    const g = m.gasior!
+    expect(g.od.y).toBeCloseTo(4000, 0)
+    expect(g.do.y).toBeCloseTo(4000, 0)
+    // Siedzi na styku połaci, czyli wyżej niż one same się kończą.
+    const kalenicaPokrycia = Math.max(...m.polacie!.flatMap((p) => p.rogi.map((r) => r.z)))
+    expect(g.od.z).toBeCloseTo(kalenicaPokrycia, 0)
+    expect(g.do.x - g.od.x).toBeGreaterThan(12000)
+  })
+
+  it('dach pulpitowy nie dostaje gąsiora, bo nie ma kalenicy', () => {
+    expect(zbudujModel(calculate({ ...defaultInput(), shape: 'shed' })).gasior).toBeNull()
+  })
+
+  // Bez tego przy kalenicy zostawała szczelina szeroka na dwie warstwy łat.
+  it('połacie schodzą się w kalenicy w jednym punkcie', () => {
+    const m = zbudujModel(calculate({ ...defaultInput(), span: 8000 }))
+    const [przednia, tylna] = m.polacie!
+    expect(przednia.rogi[2].y).toBeCloseTo(tylna.rogi[2].y, 6)
+    expect(przednia.rogi[2].z).toBeCloseTo(tylna.rogi[2].z, 6)
   })
 })

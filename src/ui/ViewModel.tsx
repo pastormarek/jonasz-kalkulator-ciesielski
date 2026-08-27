@@ -42,16 +42,19 @@ const WARSTWA_LACENIA = ['laty', 'kontrlaty']
 /**
  * Kolory pokryć spotykane na dachach w Polsce.
  *
- * To nie jest paleta producenta, tylko tyle odcieni, żeby klient zobaczył
- * różnicę między dachem ceglastym a grafitowym — o to prosił cieśla,
- * pisząc o pokryciu „w wielu kolorach".
+ * To nie jest paleta producenta — cieśla odesłał do kart Bratexu
+ * i Blachotrapezu — tylko zestaw, który sam wymienił jako podstawowy:
+ * jasny i ciemny brąz, grafit, czarny, antracyt, zieleń, czerwień, srebrny.
+ * Ceglasty zostaje na początku listy, bo taki jest najczęstszy dach z dachówki.
  */
 const KOLORY_POKRYCIA: Array<{ nazwa: string; hex: string }> = [
   { nazwa: 'Ceglasty', hex: '#a8452b' },
-  { nazwa: 'Ciemna czerwień', hex: '#7b2f27' },
-  { nazwa: 'Brąz', hex: '#5d3b25' },
+  { nazwa: 'Czerwień', hex: '#7b2f27' },
+  { nazwa: 'Jasny brąz', hex: '#8a5c3b' },
+  { nazwa: 'Ciemny brąz', hex: '#4a2f1d' },
   { nazwa: 'Grafit', hex: '#404751' },
   { nazwa: 'Antracyt', hex: '#2b3037' },
+  { nazwa: 'Czarny', hex: '#17191c' },
   { nazwa: 'Zieleń', hex: '#314a3b' },
   { nazwa: 'Srebrny', hex: '#98a1a9' },
 ]

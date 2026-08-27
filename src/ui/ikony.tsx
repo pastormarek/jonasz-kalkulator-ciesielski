@@ -60,13 +60,20 @@ export const IkonaDachJednospadowy = () => (
   </Ikona>
 )
 
+/**
+ * Kopertowy rysujemy z GÓRY, a nie z boku jak dwa pozostałe.
+ *
+ * Z boku koperta jest nie do odróżnienia od dwuspadowego — widać ten sam
+ * trójkąt. Dopiero rzut z góry pokazuje to, co ją definiuje: krótką kalenicę
+ * i cztery naroża zbiegające się do rogów budynku. Wskazał to cieśla wprost:
+ * „zmień rysunek dachu kopertowego na widok z góry".
+ */
 export const IkonaDachKopertowy = () => (
-  <Ikona tytul="Dach kopertowy">
-    {/* Kalenica krótsza od budynku i cztery zbiegające się naroża. */}
-    <path d="M4 24 L14 10 H34 L44 24" />
-    <path d="M14 10 L4 24" opacity={0.9} />
-    <path d="M34 10 L44 24" opacity={0.9} />
-    <path d="M2 24 H46" strokeWidth={1.4} opacity={0.55} />
+  <Ikona tytul="Dach kopertowy — widok z góry">
+    <path d="M4 5 H44 V27 H4 Z" strokeWidth={1.4} opacity={0.55} />
+    <path d="M15 16 H33" />
+    <path d="M4 5 L15 16 L4 27" />
+    <path d="M44 5 L33 16 L44 27" />
   </Ikona>
 )
 

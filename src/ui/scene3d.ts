@@ -16,7 +16,14 @@
  * siebie, a nie wnikają w siebie nawzajem, więc tutaj wystarcza.
  */
 
-import { wierzcholki, SCIANY, type Belka, type Model3D, type Punkt3 } from '../core/model3d'
+import {
+  wierzcholki,
+  SCIANY,
+  type Belka,
+  type Model3D,
+  type Punkt3,
+  type FakturaPokrycia,
+} from '../core/model3d'
 
 /** Położenie obserwatora względem modelu. */
 export interface Kamera {
@@ -160,6 +167,12 @@ interface SciannaDoRysowania {
   obrys: string
   /** Czy na tej ścianie kreślimy słoje. */
   sloje: boolean
+  /** Linie faktury pokrycia, gotowe do narysowania wewnątrz ściany. */
+  faktura?: PunktEkranu[][]
+  /** Kolor linii faktury. */
+  kolorFaktury?: string
+  /** Czy to kawałek pokrycia, a nie drewna. */
+  pokrycie?: boolean
 }
 
 /**
@@ -220,24 +233,74 @@ export function rysuj(
 
   if (opcje.pokrycie && model.polacie) {
     for (const polac of model.polacie) {
-      const rzutowane = polac.rogi.map(widok.rzutuj)
-      if (rzutowane.some((punkt) => !punkt.widoczny)) continue
-
       // Połać oglądamy i z góry, i od spodu, więc nie odrzucamy jej po
-      // zwrocie — inaczej znikałaby przy widoku spod dachu.
+      // zwrocie — inaczej znikałaby przy widoku spod dachu. Nie odrzucamy
+      // jej też, gdy jeden róg wypadnie za obserwatora: przy zbliżeniu na
+      // kalenicę znikała wtedy cała połać i spod gotowego dachu wyzierała
+      // więźba. Każdy kafel sprawdza się sam.
       const jasnosc = oswietlenie(polac.rogi, [0, 1, 2, 3], widok)
-      doRysowania.push({
-        punkty: rzutowane,
-        glebia: rzutowane.reduce((suma, punkt) => suma + punkt.glebia, 0) / 4,
-        wypelnienie: przyciemnij(opcje.pokrycie, jasnosc),
-        obrys: przyciemnij(opcje.pokrycie, jasnosc * 0.7),
-        sloje: false,
-      })
+      const wypelnienie = przyciemnij(opcje.pokrycie, jasnosc)
+      const kreska = przyciemnij(opcje.pokrycie, jasnosc * 0.72)
+
+      // Połać rozkładamy na kafle, a nie rysujemy jednym wielokątem. Dwa
+      // powody, oba widać na rysunku: sortowanie po głębokości działa na
+      // czymś wielkości belki, więc więźba przestaje przebijać przez dach,
+      // a granice kafli są gotowym rysunkiem materiału — rzędami dachówek
+      // albo falami blachy.
+      for (const kafel of kaflePolaci(polac.rogi, model.faktura ?? null, widok)) {
+        if (kafel.punkty.some((punkt) => !punkt.widoczny)) continue
+        doRysowania.push({
+          punkty: kafel.punkty,
+          glebia: kafel.punkty.reduce((suma, punkt) => suma + punkt.glebia, 0) / 4,
+          wypelnienie,
+          // Obrys w kolorze wypełnienia — inaczej siatka pomocnicza byłaby
+          // widoczna tam, gdzie materiał żadnego podziału nie ma.
+          obrys: wypelnienie,
+          sloje: false,
+          faktura: kafel.linie.length ? kafel.linie : undefined,
+          kolorFaktury: kreska,
+          pokrycie: true,
+        })
+      }
+    }
+
+    // Gąsior nakrywa kalenicę — bez niego dach kończy się ostrą krawędzią,
+    // której na gotowym dachu nigdy nie widać.
+    if (model.gasior) {
+      for (const pas of pasyGasiora(model.gasior, widok)) {
+        if (pas.punkty.some((p) => !p.widoczny)) continue
+        doRysowania.push({
+          punkty: pas.punkty,
+          glebia: pas.punkty.reduce((suma, p) => suma + p.glebia, 0) / pas.punkty.length,
+          wypelnienie: przyciemnij(opcje.pokrycie, pas.jasnosc),
+          obrys: przyciemnij(opcje.pokrycie, pas.jasnosc * 0.7),
+          sloje: false,
+          pokrycie: true,
+        })
+      }
     }
   }
 
   // Od najdalszej do najbliższej — bliższe zamalowują dalsze.
   doRysowania.sort((a, b) => b.glebia - a.glebia)
+
+  /*
+   * Pokrycie rozstrzygamy poza sortowaniem po głębokości.
+   *
+   * Krokiew biegnie przez całą połać, więc jej średnia głębokość wypada
+   * w połowie dachu — i połowa kafli pokrycia zawsze wychodziła „za" nią.
+   * Efekt był taki, że przez gotowy dach prześwitywała więźba.
+   *
+   * Rozstrzyga geometria, nie heurystyka: dach oglądany z góry jest bryłą
+   * wypukłą, więc pokrycie zasłania wszystko, co pod nim. Oglądany od spodu
+   * — z poddasza — nie zasłania niczego i to więźba jest na wierzchu.
+   */
+  if (opcje.pokrycie) {
+    // Sortowanie jest stabilne, więc porządek głębokości wewnątrz drewna
+    // i wewnątrz pokrycia zostaje nienaruszony — przestawiamy tylko grupy.
+    const zGory = opcje.kamera.elewacja >= 0 ? 1 : -1
+    doRysowania.sort((a, b) => zGory * (Number(!!a.pokrycie) - Number(!!b.pokrycie)))
+  }
 
   for (const s of doRysowania) {
     ctx.beginPath()
@@ -247,6 +310,7 @@ export function rysuj(
     ctx.fillStyle = s.wypelnienie
     ctx.fill()
     if (s.sloje) rysujSloje(ctx, s.punkty, paleta.krawedz)
+    if (s.faktura?.length) rysujFakture(ctx, s.faktura, s.kolorFaktury ?? s.obrys)
     ctx.strokeStyle = s.obrys
     ctx.lineWidth = 0.6
     ctx.stroke()
@@ -297,6 +361,168 @@ function oswietlenie(rogi: Punkt3[], sciana: number[], widok: Widok): number {
   void widok
   // Przenosimy zakres z [-1, 1] na [0.45, 1], żeby nic nie było zupełnie czarne.
   return 0.45 + 0.55 * Math.abs(iloczyn)
+}
+
+/** Na tyle mniej więcej kafli dzielimy jedną połać. */
+const KAFLE_NA_POLAC = 144
+
+/**
+ * Dzieli połać na kafle i rozkłada na nich linie rysunku materiału.
+ *
+ * Dwie osobne rzeczy, celowo rozdzielone:
+ *
+ *  - KAFLE są po to, żeby sortowanie po głębokości miało co porównywać.
+ *    Jedna wielka połać zawsze przegrywała z krokwią biegnącą przez cały
+ *    dach i więźba prześwitywała przez pokrycie. Kafli wystarczy kilkadziesiąt.
+ *
+ *  - LINIE to rzędy dachówek albo fale blachy. Ich rozstaw dyktuje materiał,
+ *    więc nie wolno go naciągać do siatki — wyliczamy je z modułu i rozdajemy
+ *    kaflom, przez które przechodzą.
+ *
+ * Siatkę rozpinamy w PRZESTRZENI, a dopiero potem rzutujemy każdy róg.
+ * Dzielenie gotowego czworokąta na ekranie dałoby kafle równe w pikselach,
+ * czyli rysunek spłaszczyłby się w perspektywie i cała głębia by zniknęła.
+ *
+ * Rogi połaci przychodzą w kolejności: dwa przy okapie, dwa przy kalenicy.
+ */
+function kaflePolaci(
+  rogi: [Punkt3, Punkt3, Punkt3, Punkt3],
+  faktura: FakturaPokrycia | null,
+  widok: Widok,
+): Array<{ punkty: PunktEkranu[]; linie: PunktEkranu[][] }> {
+  const [okapA, okapB, kalenicaB, kalenicaA] = rogi
+  const wzdluzSpadku = odleglosc(okapA, kalenicaA)
+  const wzdluzOkapu = odleglosc(okapA, okapB)
+
+  // Kafle mają być z grubsza kwadratowe, żeby żaden nie był długim pasem.
+  const proporcja = Math.max(0.2, Math.min(5, wzdluzOkapu / Math.max(1, wzdluzSpadku)))
+  const nRzedow = Math.max(2, Math.round(Math.sqrt(KAFLE_NA_POLAC / proporcja)))
+  const nKolumn = Math.max(2, Math.round(KAFLE_NA_POLAC / nRzedow))
+
+  // Podziały materiału, w ułamku długości boku: rzędy biegną wzdłuż okapu,
+  // kolumny wzdłuż spadku.
+  const rzedy = podzialy(wzdluzSpadku, faktura?.modulPoprzek ?? 0)
+  const kolumny = podzialy(wzdluzOkapu, faktura?.modulWzdluz ?? 0)
+
+  // Punkt siatki: u biegnie wzdłuż okapu, v od okapu do kalenicy.
+  const punkt = (u: number, v: number): Punkt3 =>
+    miedzy(miedzy(okapA, okapB, u), miedzy(kalenicaA, kalenicaB, u), v)
+
+  const kafle: Array<{ punkty: PunktEkranu[]; linie: PunktEkranu[][] }> = []
+  for (let i = 0; i < nKolumn; i++) {
+    const u0 = i / nKolumn
+    const u1 = (i + 1) / nKolumn
+    for (let j = 0; j < nRzedow; j++) {
+      const v0 = j / nRzedow
+      const v1 = (j + 1) / nRzedow
+
+      const linie: PunktEkranu[][] = []
+      // Rząd materiału to linia stałego v, przecinająca kafel w poprzek.
+      for (const v of rzedy) {
+        if (v <= v0 || v > v1) continue
+        linie.push([widok.rzutuj(punkt(u0, v)), widok.rzutuj(punkt(u1, v))])
+      }
+      // Styk arkuszy albo dachówek to linia stałego u, biegnąca wzdłuż spadku.
+      for (const u of kolumny) {
+        if (u <= u0 || u > u1) continue
+        linie.push([widok.rzutuj(punkt(u, v0)), widok.rzutuj(punkt(u, v1))])
+      }
+
+      kafle.push({
+        punkty: [punkt(u0, v0), punkt(u1, v0), punkt(u1, v1), punkt(u0, v1)].map(widok.rzutuj),
+        linie: linie.filter(([a, b]) => a.widoczny && b.widoczny),
+      })
+    }
+  }
+  return kafle
+}
+
+/**
+ * Miejsca podziału materiału na boku o danej długości, wyrażone ułamkiem
+ * tego boku. Moduł zerowy albo większy od samego boku znaczy, że materiał
+ * idzie w tym kierunku jednym kawałkiem.
+ */
+function podzialy(dlugosc: number, modul: number): number[] {
+  if (modul <= 0 || dlugosc <= modul) return []
+  const ile = Math.round(dlugosc / modul)
+  // Powyżej dwustu kresek rysunek zamienia się w jednolitą plamę.
+  if (ile < 2 || ile > 200) return []
+  const wynik: number[] = []
+  for (let i = 1; i < ile; i++) wynik.push(i / ile)
+  return wynik
+}
+
+const miedzy = (a: Punkt3, b: Punkt3, t: number): Punkt3 => ({
+  x: a.x + (b.x - a.x) * t,
+  y: a.y + (b.y - a.y) * t,
+  z: a.z + (b.z - a.z) * t,
+})
+
+const odleglosc = (a: Punkt3, b: Punkt3): number =>
+  Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z)
+
+/** Kreśli linie faktury wewnątrz już obrysowanej połaci. */
+function rysujFakture(
+  ctx: CanvasRenderingContext2D,
+  linie: PunktEkranu[][],
+  kolor: string,
+): void {
+  ctx.save()
+  ctx.clip()
+  ctx.strokeStyle = kolor
+  ctx.globalAlpha = 0.35
+  ctx.lineWidth = 0.9
+  for (const [a, b] of linie) {
+    ctx.beginPath()
+    ctx.moveTo(a.x, a.y)
+    ctx.lineTo(b.x, b.y)
+    ctx.stroke()
+  }
+  ctx.restore()
+}
+
+/** Ile płaskich pasów składa się na półwalec gąsiora. */
+const PASY_GASIORA = 6
+
+/**
+ * Rozkłada gąsior na kilka płaskich pasów biegnących wzdłuż kalenicy.
+ *
+ * Półwalca płótno nie narysuje wprost, ale sześć pasów pod różnym kątem daje
+ * ten sam efekt: każdy dostaje własną jasność, więc wałek wygląda na okrągły.
+ * Łuk prowadzimy w płaszczyźnie prostopadłej do osi kalenicy, od jednej
+ * połaci do drugiej.
+ */
+function pasyGasiora(
+  gasior: { od: Punkt3; do: Punkt3; promien: number },
+  widok: Widok,
+): Array<{ punkty: PunktEkranu[]; jasnosc: number }> {
+  const os = { x: gasior.do.x - gasior.od.x, y: gasior.do.y - gasior.od.y, z: gasior.do.z - gasior.od.z }
+  const dl = Math.hypot(os.x, os.y, os.z)
+  if (dl < 1e-6) return []
+
+  // Kalenica biegnie wzdłuż osi X, więc łuk rozpina się w płaszczyźnie YZ.
+  const punktLuku = (kat: number): { od: Punkt3; do: Punkt3 } => {
+    const dy = Math.cos(kat) * gasior.promien
+    const dz = Math.sin(kat) * gasior.promien
+    return {
+      od: { x: gasior.od.x, y: gasior.od.y + dy, z: gasior.od.z + dz },
+      do: { x: gasior.do.x, y: gasior.do.y + dy, z: gasior.do.z + dz },
+    }
+  }
+
+  const pasy: Array<{ punkty: PunktEkranu[]; jasnosc: number }> = []
+  for (let i = 0; i < PASY_GASIORA; i++) {
+    const k1 = Math.PI * (i / PASY_GASIORA)
+    const k2 = Math.PI * ((i + 1) / PASY_GASIORA)
+    const a = punktLuku(k1)
+    const b = punktLuku(k2)
+    const rogi = [a.od, a.do, b.do, b.od]
+    pasy.push({
+      punkty: rogi.map(widok.rzutuj),
+      jasnosc: oswietlenie(rogi, [0, 1, 2], widok),
+    })
+  }
+  return pasy
 }
 
 /**
