@@ -461,3 +461,25 @@ describe('okna dachowe i wymiany', () => {
     expect(c.timber.some((t) => t.name.includes('Wymian'))).toBe(true)
   })
 })
+
+describe('spięcie styku krokwi', () => {
+  // Punkty 62 i 63 z drugiej tury: śruba musi przejść przez obie nakładki,
+  // a rozkłada się je po trzy od dołu i od góry.
+  it('styk dostaje sześć śrub dobranych do grubości krokwi', () => {
+    const c = calculate(
+      base({
+        rafterSection: { b: 80, h: 200 },
+        splice: { enabled: true, atRun: 1200, support: 'sciana-kolankowa', overlap: 600 },
+      }),
+    )
+    const sruba = c.fasteners.find((f) => f.name.includes('styk krokwi'))!
+    expect(sruba).toBeDefined()
+    // 2 × 80 mm to 160 mm — krótsza śruba nie przeszłaby przez obie nakładki.
+    expect(sruba.name).toContain('160')
+    expect(sruba.note).toContain('trzy od dołu')
+  })
+
+  it('bez łączenia krokwi śrub na styk nie ma', () => {
+    expect(calculate(base()).fasteners.some((f) => f.name.includes('styk krokwi'))).toBe(false)
+  })
+})

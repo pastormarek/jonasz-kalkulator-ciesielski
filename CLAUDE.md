@@ -17,9 +17,10 @@ wyjaśnienia" z wyprowadzeniem wzorów.
 ```bash
 npm run dev      # serwer deweloperski
 npm run build    # wersja produkcyjna do dist/
-npm test         # 232 testy
+npm test         # 288 testów
 python tools/formularz-docx.py    # formularz konsultacyjny, tura 1
 python tools/formularz2-docx.py   # tura 2
+python tools/formularz4-docx.py   # tura 4
 ```
 
 ## Architektura
@@ -29,7 +30,8 @@ src/core/    obliczenia — czysty TypeScript, ZERO importów z React
   geometry.ts   połacie, zaciosy, naroża koperty, jętki
   cutting.ts    plan cięcia i objętości drewna
   materials.ts  zestawienie materiału dachu, funkcja calculate()
-  model3d.ts    zamiana wyników na bryły w przestrzeni
+  model3d.ts    zamiana wyników na bryły w przestrzeni, faktura pokrycia
+                i gąsior
   defaults.ts   wartości domyślne i słowniki
   shelter.ts          model danych i geometria wiaty: słupy, miecze, stopy
   shelterMaterials.ts zestawienie wiaty, funkcja calculateShelter()
@@ -58,7 +60,8 @@ komplety danych naraz (`input` dla dachu, `shelter` dla wiaty, `furniture` dla
 mebla) i pole `kind`, więc przełączenie niczego nie kasuje, a zapis i link
 działają dla każdej gałęzi.
 
-Zakładki dachu: Dach · Krokwie · Model · Materiał · Projekt.
+Zakładki dachu: Dach · Krokwie (z rzutem z góry do druku) · Model · Materiał ·
+Projekt.
 Zakładki wiaty: Wiata · Konstrukcja · Model · Materiał.
 Zakładki mebla: Mebel · Części i montaż · Model · Materiał.
 
@@ -118,6 +121,13 @@ a powierzchnię trzeba wtedy złożyć z kilku desek.
 
 ## Uwagi, które łatwo przeoczyć
 
+- **Linią bazową krokwi jest jej DOLNA krawędź.** Tak liczy `geometry.ts`:
+  krawędź startuje w zewnętrznym narożu murłaty, jej długość podaje
+  zestawienie, do niej odnosi się `rise` i przejście za oś kalenicy. Model 3D
+  opisuje belki osiami, więc oś krokwi unosi się o pół wysokości przekroju
+  prostopadle do połaci. Pomylenie tych dwóch rzeczy raz już wsadziło krokwie
+  w środek murłaty i obniżyło cały dach — testy sprawdzają teraz krawędź,
+  nie oś.
 - **Model 3D sprawdzaj okiem, nie tylko testem.** Wyeksportuj bryły do JSON
   krótkim testem, narysuj je Pythonem z PIL do PNG i obejrzyj narzędziem Read.
   Ta droga wyłapała rzeczy, których nie widać ani w kodzie, ani w asercjach:
@@ -125,7 +135,9 @@ a powierzchnię trzeba wtedy złożyć z kilku desek.
   kwietnika cofnięte w złą stronę, barierkę zamykającą wejście na drabinkę.
   Uwaga: prosty renderer sortujący ściany po średniej głębokości potrafi
   pokazać artefakty przy przenikających się bryłach — zanim uznasz coś za błąd,
-  sprawdź liczby.
+  sprawdź liczby. Ten sam sposób działa na rysunki SVG: wyrenderuj komponent
+  przez `renderToStaticMarkup`, a potem narysuj `rect`, `line` i `text`
+  Pythonem.
 - **Heredoc w bashu wykłada się na apostrofach** (np. `35°16'`). Do plików
   źródłowych używaj narzędzia Write albo skryptu Pythona.
 - **`git push` przez zwykły helper zawiesza się** na uwierzytelnianiu. Działa:
@@ -154,11 +166,15 @@ formularz .docx, on wpisuje odpowiedzi, my wdrażamy poprawki i pytamy dalej.
 Numeracja punktów jest **ciągła między turami** (tura 1: 1–50, tura 2: 51–73),
 żeby odwołania się nie myliły.
 
+Numeracja: tura 1: 1–50, tura 2: 51–73, tura 4: 87–111.
+
 Pierwsza tura zmieniła dziewięć rzeczy w obliczeniach — zapis w
-`docs/odpowiedzi-jonasza.md`. Z drugiej wdrożone są zakładka w kalenicy
-i deska podrynnowa (punkty 54–56, 67), reszta czeka —
-`docs/odpowiedzi-jonasza-runda2.md`. Trzecia tura to wytyczne o jakości
-rysunków i wyglądzie aplikacji — `docs/odpowiedzi-jonasza-runda3.md`.
+`docs/odpowiedzi-jonasza.md`. Druga dała geometrię zakończeń krokwi
+(`docs/odpowiedzi-jonasza-runda2.md`), trzecia wytyczne o jakości rysunków
+(`docs/odpowiedzi-jonasza-runda3.md`), a czwarta domknęła resztę i przyniosła
+uwagi do mebli — `docs/odpowiedzi-jonasza-runda4.md`. **Cała tura 4 jest
+wdrożona.** Otwarte zostają tylko strefy śniegowe (70–71), bo przekraczają
+granicę „nie dobieramy przekrojów" i to decyzja Marka.
 
 Bieżący stan prac i otwarte wątki: **`docs/STAN.md`**.
 

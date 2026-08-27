@@ -456,6 +456,21 @@ export function calculate(dane: RoofInput): Calculation {
     })
   }
 
+  // Styk krokwi spina się śrubami przechodzącymi przez obie nakładki.
+  // Reguła podana przez cieślę: „szerokość krokwi w zamku ani szerokość
+  // murłaty w miejscu łączenia nie może być większa niż długość śruby",
+  // a rozkłada się je po trzy od dołu i od góry styku.
+  if (splice.active) {
+    const przezObie = 2 * input.rafterSection.b
+    const dlugosc = [120, 140, 160, 180, 200, 220, 240].find((d) => d >= przezObie) ?? 240
+    fasteners.push({
+      name: `Śruba M8 × ${dlugosc} mm z nakrętką i podkładkami — styk krokwi`,
+      count: rafterCount * 6,
+      unit: 'szt.',
+      note: `po trzy od dołu i od góry każdego styku; śruba musi przejść przez obie nakładki, czyli ${fmt(przezObie)} mm`,
+    })
+  }
+
   if (collar && collar.valid) {
     fasteners.push({
       name: 'Śruba M12 z podkładką — jętka',
