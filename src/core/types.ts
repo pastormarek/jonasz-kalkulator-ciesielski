@@ -63,6 +63,15 @@ export interface RafterSplice {
  */
 export type RafterFixing = 'wkrety' | 'katowniki'
 
+/**
+ * Którą drogą podano szerokość dachu.
+ *
+ * „Cieśla poda rozstaw murłat, a laik poda szerokość budynku" — stąd dwie
+ * drogi zamiast jednej. Przy obrysie dochodzi pytanie o grubość ścianki,
+ * bo murłata leży w osi muru i trzeba tę oś najpierw wyznaczyć.
+ */
+export type SpanMode = 'murlaty' | 'obrys'
+
 /** Sposób zejścia krokwi w kalenicy — szczegóły w `geometry.ts`. */
 export type RidgeJointKind = 'czolowe' | 'zakladka'
 
@@ -101,8 +110,17 @@ export interface RoofInput {
   /**
    * Rozpiętość budynku [mm] — mierzona w poprzek, między ZEWNĘTRZNYMI
    * krawędziami murłat. To od tej krawędzi startuje okap i tam wypada zacios.
+   *
+   * W trybie `obrys` nie jest podawana wprost, tylko wyliczana z obrysu
+   * budynku i grubości ścianki — patrz `rozstawMurlat` w `geometry.ts`.
    */
   span: number
+  /** Którą drogą podano szerokość dachu. */
+  spanMode: SpanMode
+  /** Szerokość budynku po obrysie zewnętrznym [mm] — tryb `obrys`. */
+  outlineWidth: number
+  /** Grubość ścianki kolankowej albo muru, na którym leży murłata [mm]. */
+  wallThickness: number
   /** Długość budynku [mm], mierzona wzdłuż kalenicy. */
   length: number
   /** Kąt nachylenia połaci [stopnie]. */
@@ -137,15 +155,30 @@ export interface RoofInput {
    * Wysokość deski podrynnowej [mm].
    *
    * To ona, a nie sama krokiew, wyznacza pionowe cięcie na końcu krokwi:
-   * tnie się o dwa centymetry niżej niż wysokość deski.
+   * tnie się o odsadzkę niżej niż wysokość deski.
    */
   fasciaHeight: number
+  /**
+   * Odsadzka deski podrynnowej [mm] — o tyle deska schodzi niżej niż koniec
+   * cięcia pionowego. Ta szczelina to miejsce na podbitkę, więc przy grubszej
+   * boazerii cieśla zostawia jej więcej niż domyślne 2 cm.
+   */
+  fasciaReveal: number
 
   // --- więźba krokwiowo-jętkowa ---
   /** Wysokość dolnej krawędzi jętki nad poziomem murłaty [mm]. */
   collarHeight: number
   /** Przekrój jętki. */
   collarSection: Section
+
+  /**
+   * Wysokość ścianki kolankowej [mm] — od podłogi poddasza do spodu murłaty.
+   *
+   * Potrzebna do długości słupa: „przy dachach dwuspadowych i kopertowych,
+   * jeśli w miejscu słupa nie ma ściany nośnej, liczy się od podłogi
+   * poddasza". Zero znaczy, że murłata leży wprost na stropie.
+   */
+  kneeWallHeight: number
 
   // --- więźba płatwiowo-kleszczowa ---
   /** Liczba płatwi pośrednich na JEDNEJ połaci (0, 1 lub 2). */

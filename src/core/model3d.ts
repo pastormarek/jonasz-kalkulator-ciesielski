@@ -345,11 +345,14 @@ export function zbudujModel(w: Calculation): Model3D {
   for (const znak of kierunkiPolaci) {
     const yOparcia = znak === 1 ? 0 : span
     for (const x of zakresKrokwi) {
+      // Kontrłata leży na krokwi, więc musi iść dokładnie jej osią — także
+      // wtedy, gdy krokwie zostały rozsunięte na potrzeby rysunku zakładki.
+      const xKrokwi = x + znak * rozsuniecie
       dodaj({
         nazwa: 'Kontrłata',
         etap: 'kontrlaty',
-        start: p3(x, yOparcia - znak * eaves, -eaves * Math.tan(a)),
-        koniec: p3(x, kalenicaY, rise),
+        start: p3(xKrokwi, yOparcia - znak * eaves, -eaves * Math.tan(a)),
+        koniec: p3(xKrokwi, kalenicaY, rise),
         gora: gornaPolaci(znak),
         b: input.counterBattenSection.b,
         h: input.counterBattenSection.h,

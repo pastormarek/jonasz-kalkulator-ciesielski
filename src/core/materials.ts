@@ -16,6 +16,7 @@ import {
   collarGeometry,
   ridgeJoint,
   eavesCut,
+  rozstawMurlat,
   deg2rad,
   type SlopeGeometry,
   type RafterLayout,
@@ -123,7 +124,11 @@ const FASCIA_SPARE_PCT = 15
 /** Rozstaw kotew mocujących murłatę do wieńca [mm]. */
 const ANCHOR_SPACING = 1500
 
-export function calculate(input: RoofInput): Calculation {
+export function calculate(dane: RoofInput): Calculation {
+  // Rozpiętość podaje się dwiema drogami: cieśla wprost jako rozstaw murłat,
+  // ktoś bez wprawy jako obrys budynku. Sprowadzamy ją do jednej liczby TU,
+  // żeby reszta modułu nie musiała o tym wiedzieć.
+  const input: RoofInput = { ...dane, span: rozstawMurlat(dane) }
   const warnings: string[] = []
   const notes: string[] = []
   const a = deg2rad(input.pitchDeg)
@@ -157,7 +162,12 @@ export function calculate(input: RoofInput): Calculation {
     input.rafterSection.b,
     input.pitchDeg,
   )
-  const eaves = eavesCut(input.fasciaHeight, input.rafterSection.h, input.pitchDeg)
+  const eaves = eavesCut(
+    input.fasciaHeight,
+    input.rafterSection.h,
+    input.pitchDeg,
+    input.fasciaReveal,
+  )
 
   const splice = evaluateSplice(input, slope, warnings, notes)
 
@@ -192,6 +202,11 @@ export function calculate(input: RoofInput): Calculation {
   }
   if (collar && !collar.valid) {
     warnings.push('Jętka jest za wysoko — wypada powyżej kalenicy. Obniż ją.')
+  }
+  if (input.hasFascia && eaves.fits && eaves.horizontalCut > 0) {
+    notes.push(
+      `Koniec krokwi ma dwa cięcia: pionowe na ${fmt(eaves.cutHeight)} mm i poziome na ${fmt(eaves.horizontalCut)} mm w głąb. Deska podrynnowa schodzi ${fmt(eaves.reveal)} mm poniżej cięcia poziomego — to miejsce na podbitkę.`,
+    )
   }
   if (input.hasFascia && !eaves.fits) {
     warnings.push(
@@ -425,12 +440,21 @@ export function calculate(input: RoofInput): Calculation {
     })
   }
 
-  fasteners.push({
-    name: 'Wkręt do połączenia w kalenicy',
-    count: rafterCount * 4,
-    unit: 'szt.',
-    note: 'po cztery na parę krokwi',
-  })
+  // Dach pulpitowy nie ma kalenicy — nie ma tam czego spinać.
+  if (!isShed) {
+    // Wkręt musi przejść przez obie połówki zakładki, więc jego długość
+    // dobiera się do grubości krokwi. Cztery sztuki na parę to minimum.
+    const paryKrokwi = Math.ceil(rafterCount / 2)
+    fasteners.push({
+      name: 'Wkręt ciesielski — połączenie krokwi w kalenicy',
+      count: paryKrokwi * 4,
+      unit: 'szt.',
+      note:
+        ridge.kind === 'zakladka'
+          ? `po cztery na parę krokwi, długość co najmniej ${fmt(input.rafterSection.b)} mm — tyle, ile grubość krokwi`
+          : 'po cztery na parę krokwi',
+    })
+  }
 
   if (collar && collar.valid) {
     fasteners.push({
@@ -470,7 +494,19 @@ export function calculate(input: RoofInput): Calculation {
     name: 'Łaty',
     net: battenLinearM,
     gross: battenLinearM * 1.05,
-    note: `${battenRows} rzędów na połaci (w tym łata pod gąsior i na pas okapowy), rozstaw ${fmt(input.battenSpacing)} mm`,
+    note: `${battenRows} rzędów na połaci (w tym łata pod gąsior i druga łata pasa okapowego, odsunięta o 1–2 cm od pierwszej), rozstaw ${fmt(input.battenSpacing)} mm`,
+  })
+  // Wiatrownica to ta sama łata co na dachu, przybijana od spodu krokwi
+  // ukośnie — dwie sztuki, po jednej z każdej strony dachu. Biegnie po
+  // przekątnej od kalenicy w stronę okapu, przecinając kilka krokwi, więc
+  // jest dłuższa od samej połaci; przyjmujemy skos przez trzy pola krokwi.
+  const wiatrownicaSkos = Math.hypot(slope.slopeLength, 3 * layout.spacing)
+  const wiatrownicaM = (wiatrownicaSkos * 2) / 1000
+  areas.push({
+    name: 'Wiatrownice',
+    net: wiatrownicaM,
+    gross: wiatrownicaM * 1.05,
+    note: `dwie sztuki, po jednej z każdej strony dachu, z tej samej łaty ${fmt(input.battenSection.b)}×${fmt(input.battenSection.h)} mm; przybijane od spodu krokwi pod skosem`,
   })
   areas.push({
     name: 'Kontrłaty',
@@ -533,6 +569,14 @@ function addPurlinFrame(
       note: 'podpiera krokwie w kalenicy',
       splittable: true,
     })
+    // Krokwie spięte zakładką trzymają się w kalenicy same. Płatew nadal
+    // wolno pod nie wsunąć, ale wtedy jest wyborem projektu, a nie
+    // koniecznością — warto o tym wiedzieć przed zamówieniem belki.
+    if (input.ridgeJoint === 'zakladka' && input.shape !== 'shed') {
+      notes.push(
+        'Przy zakładce w kalenicy płatew kalenicowa nie jest konieczna — krokwie spięte na zakładkę trzymają się same. Jeśli projekt jej nie przewiduje, zmień więźbę na krokwiową albo jętkową, a płatew i słupy znikną z zestawienia.',
+      )
+    }
   } else {
     timber.push({
       name: 'Płatew pośrednia',
@@ -544,17 +588,27 @@ function addPurlinFrame(
     })
   }
 
-  // Słup sięga od stropu do płatwi — bierzemy połowę wzniesienia jako przybliżenie.
-  const postHeight = slope.rise / 2
+  // Wysokość słupa liczona od PODŁOGI PODDASZA — tak wskazał cieśla: „przy
+  // dachach dwuspadowych i kopertowych, jeśli w miejscu słupa nie ma ściany
+  // nośnej, liczy się od podłogi poddasza".
+  //
+  // Do wierzchu murłaty jest stamtąd ścianka kolankowa plus sama murłata.
+  // Płatwie dzielą bieg połaci na równe części, więc pierwsza z dwóch stoi
+  // w 1/3 biegu, a jedyna — w połowie. Wysokość krokwi nad murłatą w tym
+  // miejscu to bieg × tg α, a słup kończy się pod płatwią, nie na krokwi.
+  const doMurlaty = input.kneeWallHeight + input.wallPlateSection.h
+  const biegPlatwi = purlins === 0 ? slope.run : slope.run / (purlins + 1)
+  const wzniesieniePlatwi = biegPlatwi * Math.tan(deg2rad(input.pitchDeg))
+  const postHeight = Math.max(0, doMurlaty + wzniesieniePlatwi - input.purlinSection.h)
   timber.push({
     name: 'Słup',
     section: input.postSection,
     length: withAllowance(postHeight, input.cutAllowance),
     count: postsPerPurlin * Math.max(1, purlins * 2),
-    note: `wysokość szacowana na ${fmt(postHeight)} mm — sprawdź z rzutem`,
+    note: `od podłogi poddasza do spodu płatwi: ${fmt(input.kneeWallHeight)} mm ścianki + ${fmt(input.wallPlateSection.h)} mm murłaty + ${fmt(wzniesieniePlatwi)} mm wzniesienia − ${fmt(input.purlinSection.h)} mm płatwi`,
   })
   notes.push(
-    'Wysokość słupów w więźbie płatwiowej zależy od poziomu stropu i jest tu tylko oszacowana. Sprawdź ją w projekcie.',
+    'Długość słupa liczymy od podłogi poddasza. Jeśli w miejscu słupa stoi ściana nośna albo projekt podaje inny poziom oparcia, sprawdź to z rzutem — słup zawsze można dociąć, gdyby wyszedł za długi.',
   )
 
   if (input.hasClamps) {

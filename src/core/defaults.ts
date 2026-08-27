@@ -8,6 +8,7 @@
  */
 
 import type { RoofInput, Covering, StockMode, SpliceSupport, RafterFixing } from './types'
+import { FASCIA_REVEAL } from './geometry'
 
 /** Długości drewna dostępne od ręki w składzie budowlanym [mm]. */
 export const STOCK_LENGTHS = [3000, 4000, 5000, 6000]
@@ -120,6 +121,9 @@ export function defaultInput(): RoofInput {
     truss: 'collar',
 
     span: 8000,
+    spanMode: 'murlaty',
+    outlineWidth: 8100,
+    wallThickness: 250,
     length: 12000,
     pitchDeg: 35,
     eaves: 600,
@@ -130,15 +134,18 @@ export function defaultInput(): RoofInput {
     wallPlateSection: { b: 140, h: 140 },
 
     notchDepth: 30,
-    // Zakładka jest droższa w robociźnie i wydłuża krokiew, więc nie
-    // narzucamy jej domyślnie — ale cieśla podaje ją jako sposób, w jaki
-    // robi się to porządnie, i pole jest tuż obok.
-    ridgeJoint: 'czolowe',
+    // „Większość więźb ma zakładkę i tego trzeba się trzymać" — dlatego to
+    // ona jest domyślna, mimo że jest droższa w robociźnie i wydłuża krokiew.
+    // Cięcie czołowe zostaje na wypadek, gdy projekt daje belkę kalenicową.
+    ridgeJoint: 'zakladka',
     hasFascia: true,
     fasciaHeight: 200,
+    fasciaReveal: FASCIA_REVEAL,
 
     collarHeight: 2200,
     collarSection: { b: 80, h: 160 },
+
+    kneeWallHeight: 900,
 
     purlinCount: 1,
     purlinSection: { b: 140, h: 140 },

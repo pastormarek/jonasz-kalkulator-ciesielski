@@ -34,7 +34,7 @@ describe('model przestrzenny', () => {
   })
 
   it('krokwie sięgają od okapu do kalenicy', () => {
-    const m = model({ span: 8000, pitchDeg: 35, eaves: 600 })
+    const m = model({ span: 8000, pitchDeg: 35, eaves: 600, ridgeJoint: 'czolowe' })
     const krokiew = wg(m, 'Krokiew')[0]
     // Zaczyna się poza murłatą, czyli przy ujemnym Y.
     expect(krokiew.start.y).toBeCloseTo(-600, 0)
@@ -43,11 +43,23 @@ describe('model przestrzenny', () => {
     expect(krokiew.koniec.z).toBeGreaterThan(0)
   })
 
+  it('przy zakładce krokwie mijają się w kalenicy', () => {
+    const w = calculate({ ...defaultInput(), span: 8000, pitchDeg: 35, ridgeJoint: 'zakladka' })
+    const m = zbudujModel(w)
+    // Każda krokiew przechodzi za oś kalenicy o tyle, ile wyliczył rdzeń.
+    const przejscie = w.ridge.overshootRun
+    expect(przejscie).toBeGreaterThan(0)
+    const kalenica = wg(m, 'Krokiew').map((b) => b.koniec.y)
+    expect(Math.max(...kalenica)).toBeCloseTo(4000 + przejscie, 0)
+    expect(Math.min(...kalenica)).toBeCloseTo(4000 - przejscie, 0)
+  })
+
   it('długość krokwi w modelu zgadza się z obliczeniami', () => {
     const w = calculate(defaultInput())
     const m = zbudujModel(w)
     const krokiew = wg(m, 'Krokiew')[0]
-    expect(dlugosc(krokiew)).toBeCloseTo(w.slope.rafterTotal, 0)
+    // Zakładka wydłuża krokiew ponad geometrię samej połaci.
+    expect(dlugosc(krokiew)).toBeCloseTo(w.slope.rafterTotal + w.ridge.extension, 0)
   })
 
   it('krokwie stoją w rozstawie wyliczonym przez rdzeń', () => {
@@ -107,6 +119,8 @@ describe('model przestrzenny', () => {
     }
   })
 
+  // Rozsunięcie krokwi przy zakładce jest zabiegiem rysunkowym, ale kontrłata
+  // musi za nim pójść — inaczej wisi obok krokwi zamiast na niej.
   it('kontrłaty leżą nad krokwiami, a łaty jeszcze wyżej', () => {
     const m = model()
     const krokiew = wg(m, 'Krokiew').find((b) => b.start.y < 0)!

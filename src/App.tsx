@@ -116,6 +116,7 @@ export default function App() {
   const [projekty, setProjekty] = useState<Project[]>(() => loadProjects())
   const [komunikat, setKomunikat] = useState('')
 
+  const dach = projekt.kind === 'dach'
   const wiata = projekt.kind === 'wiata'
   const mebel = projekt.kind === 'mebel'
   const zakladki = ZAKLADKI[projekt.kind]
@@ -308,14 +309,14 @@ export default function App() {
         </div>
 
         <DostawcaJednostek jednostka={jednostka}>
-          {!wiata && zakladka === 'dach' && (
+          {dach && zakladka === 'dach' && (
             <ViewDach input={projekt.input} onChange={zmien} wyjasnienia={wyjasnienia} />
           )}
-          {!wiata && zakladka === 'krokwie' && (
+          {dach && zakladka === 'krokwie' && (
             <ViewKrokwie wynik={wynik} wyjasnienia={wyjasnienia} />
           )}
-          {!wiata && zakladka === 'material' && <ViewMaterial wynik={wynik} />}
-          {!wiata && zakladka === 'projekt' && (
+          {dach && zakladka === 'material' && <ViewMaterial wynik={wynik} />}
+          {dach && zakladka === 'projekt' && (
             <ViewProjekt input={projekt.input} onChange={zmien} />
           )}
 

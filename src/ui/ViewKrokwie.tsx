@@ -226,8 +226,14 @@ export function ViewKrokwie({
                 etykieta="Cięcie pionowe przy okapie"
                 wartosc={mm(eaves.cutHeight)}
                 jednostka="mm"
-                opis={`deska podrynnowa ${mm(eaves.fasciaHeight)} mm, cięcie 2 cm niżej`}
+                opis={`deska podrynnowa ${mm(eaves.fasciaHeight)} mm, cięcie o ${mm(eaves.reveal)} mm niżej`}
                 wyrozniony={eaves.fits}
+              />
+              <Wynik
+                etykieta="Cięcie poziome przy okapie"
+                wartosc={mm(eaves.horizontalCut)}
+                jednostka="mm"
+                opis="w głąb krokwi, od dołu cięcia pionowego do jej spodu"
               />
               <Wynik
                 etykieta="Krokiew w pionie"
@@ -247,7 +253,9 @@ export function ViewKrokwie({
           <Komunikat rodzaj="info">
             Przy zakładce dolna krawędź krokwi dochodzi do górnej krawędzi krokwi
             przeciwnej. Obie są wybrane na pół grubości, więc po złożeniu dają pełny
-            przekrój. Długości w zestawieniu materiału już to uwzględniają.
+            przekrój, a koniec krokwi ścina się równolegle do boku krokwi przeciwnej.
+            Spina się je czterema wkrętami o długości co najmniej równej grubości
+            krokwi. Długości w zestawieniu materiału już to uwzględniają.
           </Komunikat>
         )}
 
@@ -265,10 +273,14 @@ export function ViewKrokwie({
             )}
             {input.hasFascia && (
               <>
-                cięcie pionowe = {mm(eaves.fasciaHeight)} − 20 = {mm(eaves.cutHeight)} mm
+                cięcie pionowe = {mm(eaves.fasciaHeight)} − {mm(eaves.reveal)} ={' '}
+                {mm(eaves.cutHeight)} mm
                 <br />
                 krokiew w pionie = wysokość ÷ cos({liczba(input.pitchDeg, 0)}°) ={' '}
                 {mm(eaves.verticalHeight)} mm
+                <br />
+                cięcie poziome = (krokiew w pionie − cięcie pionowe) ÷ tg(
+                {liczba(input.pitchDeg, 0)}°) = {mm(eaves.horizontalCut)} mm
               </>
             )}
           </Wzor>

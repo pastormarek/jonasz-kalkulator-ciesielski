@@ -14,6 +14,7 @@ import type {
   Opening,
   RafterFixing,
   RidgeJointKind,
+  SpanMode,
 } from '../core/types'
 import { COVERING_INFO, SHAPE_LABELS, TRUSS_LABELS, stockLengthsFor, COMMON_SECTIONS, FIXING_INFO } from '../core/defaults'
 import {
@@ -25,7 +26,7 @@ import {
   WyborKafelkowy,
   Wzor,
 } from './controls'
-import { degToPercent, percentToDeg, ridgeJoint } from '../core/geometry'
+import { degToPercent, percentToDeg, ridgeJoint, eavesCut, rozstawMurlat } from '../core/geometry'
 import { liczba, mm } from './format'
 import { IKONY_KSZTALTU_DACHU, IKONY_KALENICY } from './ikony'
 
@@ -47,6 +48,16 @@ export function ViewDach({
     input.rafterSection.b,
     input.pitchDeg,
   ).extension
+  // Podgląd zakończenia krokwi przy okapie liczy dokładnie ta sama funkcja,
+  // która potem układa zestawienie — dzięki temu podpowiedź nie może się
+  // rozjechać z tym, co cieśla przeczyta na zakładce Krokwie.
+  const okap = eavesCut(
+    input.fasciaHeight,
+    input.rafterSection.h,
+    input.pitchDeg,
+    input.fasciaReveal,
+  )
+  const rozstaw = rozstawMurlat(input)
 
   return (
     <div className="kolumny">
@@ -93,14 +104,44 @@ export function ViewDach({
       </Karta>
 
       <Karta tytul="Wymiary z projektu" podtytul="Podstawowe wymiary budynku i połaci.">
+        <PoleWyboru
+          label="Skąd bierzesz szerokość dachu"
+          value={input.spanMode}
+          onChange={(spanMode: SpanMode) => onChange({ spanMode })}
+          opcje={[
+            { value: 'murlaty', label: 'Znam rozstaw murłat' },
+            { value: 'obrys', label: 'Znam obrys budynku' },
+          ]}
+          podpowiedz="Cieśla poda rozstaw murłat, bo tak mierzy na budowie. Kto ma przed sobą projekt architektoniczny, poda obrys — wtedy trzeba jeszcze grubości ścianki, żeby wyznaczyć oś muru."
+        />
+        <div className="odstep" />
         <div className="siatka-pol">
-          <PoleLiczbowe
-            label="Rozpiętość budynku"
-            value={input.span}
-            onChange={(span) => onChange({ span })}
-            krok={100}
-            podpowiedz="Mierzona w poprzek, po zewnętrznych krawędziach murłat."
-          />
+          {input.spanMode === 'obrys' ? (
+            <>
+              <PoleLiczbowe
+                label="Szerokość budynku po obrysie"
+                value={input.outlineWidth}
+                onChange={(outlineWidth) => onChange({ outlineWidth })}
+                krok={100}
+                podpowiedz="Po zewnętrznych licach ścian, tak jak na rzucie."
+              />
+              <PoleLiczbowe
+                label="Grubość ścianki kolankowej"
+                value={input.wallThickness}
+                onChange={(wallThickness) => onChange({ wallThickness })}
+                krok={10}
+                podpowiedz={`Murłata leży w osi muru — zawsze. Rozstaw murłat wychodzi z tego na ${mm(rozstaw)} mm.`}
+              />
+            </>
+          ) : (
+            <PoleLiczbowe
+              label="Rozpiętość budynku"
+              value={input.span}
+              onChange={(span) => onChange({ span })}
+              krok={100}
+              podpowiedz="Mierzona w poprzek, po zewnętrznych krawędziach murłat."
+            />
+          )}
           <PoleLiczbowe
             label="Długość budynku"
             value={input.length}
@@ -241,15 +282,29 @@ export function ViewDach({
           onChange={(hasFascia) => onChange({ hasFascia })}
         />
         {input.hasFascia && (
-          <div className="siatka-pol" style={{ marginTop: 12 }}>
-            <PoleLiczbowe
-              label="Wysokość deski podrynnowej"
-              value={input.fasciaHeight}
-              onChange={(fasciaHeight) => onChange({ fasciaHeight })}
-              krok={10}
-              podpowiedz={`Krokiew tnie się pionowo 2 cm niżej, czyli na ${mm(Math.max(0, input.fasciaHeight - 20))} mm.`}
-            />
-          </div>
+          <>
+            <div className="siatka-pol" style={{ marginTop: 12 }}>
+              <PoleLiczbowe
+                label="Wysokość deski podrynnowej"
+                value={input.fasciaHeight}
+                onChange={(fasciaHeight) => onChange({ fasciaHeight })}
+                krok={10}
+                podpowiedz={`Krokiew tnie się pionowo na ${mm(okap.cutHeight)} mm, czyli o odsadzkę niżej.`}
+              />
+              <PoleLiczbowe
+                label="Odsadzka na podbitkę"
+                value={input.fasciaReveal}
+                onChange={(fasciaReveal) => onChange({ fasciaReveal })}
+                krok={5}
+                podpowiedz="O tyle deska schodzi niżej niż koniec cięcia. Ta szczelina zostaje na podbitkę — boazeria 2 cm wypełni ją równo."
+              />
+            </div>
+            <p className="podpowiedz" style={{ marginTop: 8 }}>
+              Koniec krokwi ma dwa cięcia: pionowe na {mm(okap.cutHeight)} mm i poziome
+              na {mm(okap.horizontalCut)} mm w głąb. Dzięki poziomemu deska podrynnowa
+              schodzi poniżej spodu krokwi i jest gdzie zamocować podbitkę.
+            </p>
+          </>
         )}
 
         {wyjasnienia && (
@@ -299,6 +354,14 @@ export function ViewDach({
               value={input.postSpacingMax}
               onChange={(postSpacingMax) => onChange({ postSpacingMax })}
               krok={100}
+            />
+            <PoleLiczbowe
+              label="Wysokość ścianki kolankowej"
+              value={input.kneeWallHeight}
+              onChange={(kneeWallHeight) => onChange({ kneeWallHeight })}
+              krok={50}
+              min={0}
+              podpowiedz="Od podłogi poddasza do spodu murłaty. Od tego poziomu liczymy długość słupa — słup zawsze można dociąć, gdyby wyszedł za długi."
             />
             <PolePrzekroju
               label="Przekrój płatwi"

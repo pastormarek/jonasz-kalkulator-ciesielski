@@ -324,3 +324,101 @@ describe('poprawki po konsultacji ciesielskiej', () => {
     expect(defaultInput().cutAllowance).toBe(100)
   })
 })
+
+describe('ustalenia z czwartej tury', () => {
+  const poz = (c: ReturnType<typeof calculate>, nazwa: string) =>
+    c.areas.find((a) => a.name === nazwa)
+  const lacznik = (c: ReturnType<typeof calculate>, fragment: string) =>
+    c.fasteners.find((f) => f.name.includes(fragment))
+
+  // Punkt 88: „większość więźb ma zakładkę i tego trzeba się trzymać".
+  it('zakładka w kalenicy jest domyślna', () => {
+    expect(defaultInput().ridgeJoint).toBe('zakladka')
+    expect(calculate(base()).ridge.extension).toBeGreaterThan(0)
+  })
+
+  // Punkt 90: wkręt musi przejść przez obie połówki zakładki.
+  it('kalenicę spinają cztery wkręty na parę krokwi, dobrane do grubości krokwi', () => {
+    const c = calculate(base({ rafterSection: { b: 80, h: 180 } }))
+    const w = lacznik(c, 'połączenie krokwi w kalenicy')!
+    const krokwie = c.timber
+      .filter((t) => t.name.startsWith('Krokiew') || t.name.startsWith('Kulawka'))
+      .reduce((s, t) => s + t.count, 0)
+    expect(w.count).toBe(Math.ceil(krokwie / 2) * 4)
+    expect(w.note).toContain('80')
+  })
+
+  it('dach pulpitowy nie dostaje wkrętów do kalenicy, bo jej nie ma', () => {
+    expect(lacznik(calculate(base({ shape: 'shed' })), 'w kalenicy')).toBeUndefined()
+  })
+
+  // Punkt 91: krokwie spięte zakładką trzymają się same.
+  it('przy zakładce uprzedza, że płatew kalenicowa nie jest konieczna', () => {
+    const c = calculate(base({ truss: 'purlin', purlinCount: 0, ridgeJoint: 'zakladka' }))
+    expect(c.notes.join(' ')).toMatch(/płatew kalenicowa nie jest konieczna/i)
+    const czolowe = calculate(base({ truss: 'purlin', purlinCount: 0, ridgeJoint: 'czolowe' }))
+    expect(czolowe.notes.join(' ')).not.toMatch(/nie jest konieczna/i)
+  })
+
+  // Punkty 51-53 i 96: długość słupa liczona, nie zgadywana.
+  it('słup mierzy się od podłogi poddasza do spodu płatwi', () => {
+    const c = calculate(
+      base({
+        truss: 'purlin',
+        purlinCount: 1,
+        kneeWallHeight: 900,
+        wallPlateSection: { b: 140, h: 140 },
+        purlinSection: { b: 140, h: 140 },
+        cutAllowance: 0,
+      }),
+    )
+    const slup = c.timber.find((t) => t.name === 'Słup')!
+    // Jedna płatew dzieli bieg połaci na pół, więc stoi w połowie biegu.
+    const wzniesienie = (c.slope.run / 2) * Math.tan((c.input.pitchDeg * Math.PI) / 180)
+    expect(slup.length).toBeCloseTo(900 + 140 + wzniesienie - 140, 0)
+    expect(slup.note).toContain('podłogi poddasza')
+  })
+
+  it('wyższa ścianka kolankowa daje dłuższy słup', () => {
+    const dl = (h: number) =>
+      calculate(base({ truss: 'purlin', purlinCount: 1, kneeWallHeight: h })).timber.find(
+        (t) => t.name === 'Słup',
+      )!.length
+    expect(dl(1200)).toBeCloseTo(dl(900) + 300, 0)
+  })
+
+  // Punkt 99: wiatrownice to łaty, dwie sztuki, przybijane ukośnie.
+  it('wiatrownice trafiają do zestawienia jako łaty', () => {
+    const c = calculate(base())
+    const w = poz(c, 'Wiatrownice')!
+    expect(w.note).toContain('dwie sztuki')
+    // Biegną po skosie, więc są dłuższe niż dwie długości połaci.
+    expect(w.net).toBeGreaterThan((2 * c.slope.slopeLength) / 1000)
+  })
+
+  // Punkt 100: druga łata pasa okapowego ma ten sam wymiar i idzie na całej długości.
+  it('opis łat wspomina o drugiej łacie pasa okapowego', () => {
+    expect(poz(calculate(base()), 'Łaty')!.note).toMatch(/pasa okapowego/i)
+  })
+
+  // Punkt 95: koniec krokwi ma dwa cięcia.
+  it('uwaga wykonawcza opisuje oba cięcia przy okapie', () => {
+    const c = calculate(base({ hasFascia: true, fasciaHeight: 200 }))
+    expect(c.notes.join(' ')).toMatch(/pionowe.*poziome/i)
+    expect(c.notes.join(' ')).toMatch(/podbitk/i)
+  })
+
+  // Punkt 98: obrys budynku to druga droga do tej samej liczby.
+  it('obrys budynku przelicza się na rozstaw murłat', () => {
+    const c = calculate(
+      base({
+        spanMode: 'obrys',
+        outlineWidth: 8100,
+        wallThickness: 250,
+        wallPlateSection: { b: 140, h: 140 },
+      }),
+    )
+    expect(c.input.span).toBe(7990)
+    expect(c.slope.run).toBeCloseTo(7990 / 2, 6)
+  })
+})

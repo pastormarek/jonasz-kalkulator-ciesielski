@@ -10,6 +10,7 @@ import {
   ratioToDeg,
   ridgeJoint,
   eavesCut,
+  rozstawMurlat,
   deg2rad,
 } from './geometry'
 
@@ -228,5 +229,63 @@ describe('cięcie krokwi przy desce podrynnowej', () => {
     expect(eavesCut(200, 180, 42).fits).toBe(true)
     // Krokiew 14 cm przy 42° ma w pionie 18,8 cm — deska 25 cm już się nie mieści.
     expect(eavesCut(250, 140, 42).fits).toBe(false)
+  })
+})
+
+describe('cięcie poziome przy okapie', () => {
+  // Punkt 95: koniec krokwi ma dwa cięcia, nie jedno. Poziome biegnie od dołu
+  // cięcia pionowego w głąb krokwi, aż spotka jej dolną krawędź.
+  it('cięcie poziome sięga dokładnie do dolnej krawędzi krokwi', () => {
+    const kat = 42
+    const c = eavesCut(200, 180, kat)
+    // Idąc w głąb o horizontalCut, dolna krawędź krokwi podnosi się dokładnie
+    // do poziomu, na którym kończy się cięcie pionowe.
+    const podniesienie = c.horizontalCut * Math.tan(deg2rad(kat))
+    expect(podniesienie).toBeCloseTo(c.verticalHeight - c.cutHeight, 6)
+  })
+
+  it('im wyższa deska, tym krótsze cięcie poziome', () => {
+    expect(eavesCut(240, 180, 42).horizontalCut).toBeLessThan(
+      eavesCut(180, 180, 42).horizontalCut,
+    )
+  })
+
+  it('dach bez spadku nie ma gdzie zakończyć cięcia poziomego', () => {
+    const c = eavesCut(200, 180, 0)
+    expect(Number.isFinite(c.horizontalCut)).toBe(true)
+    expect(c.horizontalCut).toBe(0)
+  })
+
+  // Punkt 92: odsadzka to grubość przyszłej podbitki, nie stała.
+  it('odsadzkę można zwiększyć pod grubszą podbitkę', () => {
+    expect(eavesCut(200, 180, 42, 30).cutHeight).toBe(170)
+    expect(eavesCut(200, 180, 42, 30).reveal).toBe(30)
+  })
+})
+
+describe('dwie drogi podawania szerokości dachu', () => {
+  const dach = {
+    span: 8000,
+    spanMode: 'murlaty' as const,
+    outlineWidth: 8100,
+    wallThickness: 250,
+    wallPlateSection: { b: 140, h: 140 },
+  }
+
+  it('cieśla podaje rozstaw murłat i tak zostaje', () => {
+    expect(rozstawMurlat({ ...dach } as never)).toBe(8000)
+  })
+
+  // Murłata leży w osi muru — zawsze. Oś jest o pół grubości ścianki do
+  // środka od lica, a krawędź murłaty wraca o pół jej szerokości na zewnątrz.
+  it('z obrysu budynku wychodzi rozstaw osi powiększony o szerokość murłaty', () => {
+    const r = rozstawMurlat({ ...dach, spanMode: 'obrys' } as never)
+    expect(r).toBe(8100 - 250 + 140)
+  })
+
+  it('grubsza ścianka zwęża rozstaw murłat', () => {
+    const cienka = rozstawMurlat({ ...dach, spanMode: 'obrys', wallThickness: 200 } as never)
+    const gruba = rozstawMurlat({ ...dach, spanMode: 'obrys', wallThickness: 400 } as never)
+    expect(gruba).toBeLessThan(cienka)
   })
 })

@@ -60,6 +60,9 @@ describe('aplikacja jako całość', () => {
     render(<App />)
 
     // Trójkąt 3-4-5: bieg 4 m i wzniesienie 3 m dają krokiew równo 5 m.
+    // Zakładka w kalenicy jest domyślna i wydłuża krokiew, więc na czas
+    // sprawdzenia czystej geometrii wybieramy cięcie czołowe.
+    await user.click(screen.getByRole('button', { name: /Cięcie czołowe/i }))
     await wpisz(user, /Rozpiętość budynku/i, '8000')
     await wpisz(user, /^Kąt nachylenia/i, '36.87')
     await wpisz(user, /Wysunięcie okapu/i, '0')
@@ -73,6 +76,7 @@ describe('aplikacja jako całość', () => {
     const user = userEvent.setup()
     render(<App />)
 
+    await user.click(screen.getByRole('button', { name: /Cięcie czołowe/i }))
     await wpisz(user, /Rozpiętość budynku/i, '8000')
     await wpisz(user, /^Kąt nachylenia/i, '36.87')
     await wpisz(user, /Wysunięcie okapu/i, '0')
@@ -528,21 +532,24 @@ describe('meble ogrodowe i domowe', () => {
 })
 
 describe('kalenica i deska podrynnowa', () => {
+  // Od czwartej tury zakładka jest domyślna: „większość więźb ma zakładkę
+  // i tego trzeba się trzymać".
   it('zakładka ciesielska wydłuża krokiew, cięcie czołowe nie', async () => {
     const user = userEvent.setup()
     render(<App />)
     await zakladka(user, 'krokwie')
 
-    const przedZmiana = kafelek('Długość krokwi').textContent ?? ''
-
-    await zakladka(user, 'dach')
-    await user.click(screen.getByRole('button', { name: /Zakładka ciesielska/i }))
-    await zakladka(user, 'krokwie')
-
-    // Ta sama krokiew liczona z zakładką musi wyjść dłuższa.
-    expect(kafelek('Długość krokwi').textContent).not.toBe(przedZmiana)
+    const zZakladka = kafelek('Długość krokwi').textContent ?? ''
     expect(kafelek('Wydłużenie krokwi')).toBeDefined()
     expect(kafelek('Głębokość wybrania')).toBeDefined()
+
+    await zakladka(user, 'dach')
+    await user.click(screen.getByRole('button', { name: /Cięcie czołowe/i }))
+    await zakladka(user, 'krokwie')
+
+    // Ta sama krokiew cięta czołowo musi wyjść krótsza.
+    expect(kafelek('Długość krokwi').textContent).not.toBe(zZakladka)
+    expect(screen.queryByText('Wydłużenie krokwi')).toBeNull()
   })
 
   it('przy dachu pulpitowym zakładka nie ma czego zazębiać', async () => {
@@ -647,5 +654,21 @@ describe('wytyczne z trzeciej tury', () => {
 
     expect(screen.queryByLabelText(/^Pokrycie/i)).toBeNull()
     expect(screen.queryByLabelText(/Łaty i kontrłaty/i)).toBeNull()
+  })
+})
+
+describe('poprawki z czwartej tury', () => {
+  // Zakładka „Materiał" istnieje w każdej z trzech gałęzi, więc warunek
+  // renderowania musi wskazywać rodzaj wprost. Kiedy brzmiał „nie wiata",
+  // pod zestawieniem mebla doklejało się zestawienie więźby dachowej.
+  it('zestawienie mebla nie zawiera pozycji z więźby dachowej', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: /^Meble$/ }))
+    await zakladka(user, 'materiał')
+
+    expect(screen.queryByText('Drewno konstrukcyjne')).toBeNull()
+    expect(screen.queryByText(/Murłata/i)).toBeNull()
+    expect(screen.queryByText(/Krokiew zwykła/i)).toBeNull()
   })
 })

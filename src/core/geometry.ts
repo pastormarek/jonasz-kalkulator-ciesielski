@@ -12,7 +12,7 @@
  * Dlatego długość krokwi to po prostu: zasięg poziomy / cos α.
  */
 
-import type { RidgeJointKind } from './types'
+import type { RidgeJointKind, RoofInput } from './types'
 
 export const deg2rad = (deg: number): number => (deg * Math.PI) / 180
 export const rad2deg = (rad: number): number => (rad * 180) / Math.PI
@@ -56,6 +56,26 @@ export function slopeGeometry(run: number, pitchDeg: number, eaves: number): Slo
     slopeLength: rafterToRidge + eavesLength,
     pitchDeg,
   }
+}
+
+/**
+ * Rozstaw zewnętrznych krawędzi murłat [mm] — to od nich startuje okap
+ * i tam wypada zacios, więc cała reszta geometrii liczy się od tej liczby.
+ *
+ * Cieśla zna ją wprost i podaje z pamięci. Ktoś bez wprawy zna za to obrys
+ * budynku, więc wtedy trzeba ją wyprowadzić (odpowiedzi Jonasza, punkty 59,
+ * 60 i 98). Murłata leży w OSI muru — zawsze — więc oś jest o pół grubości
+ * ścianki do środka od lica, a zewnętrzna krawędź murłaty wraca o pół jej
+ * szerokości na zewnątrz:
+ *
+ *     rozstaw osi   = obrys − grubość ścianki
+ *     rozstaw krawędzi = rozstaw osi + szerokość murłaty
+ *
+ * Dla obrysu 8,10 m, ścianki 25 cm i murłaty 14 cm daje to 7,99 m.
+ */
+export function rozstawMurlat(input: RoofInput): number {
+  if (input.spanMode !== 'obrys') return input.span
+  return Math.max(0, input.outlineWidth - input.wallThickness + input.wallPlateSection.b)
 }
 
 /** Zamienia spadek w procentach na kąt w stopniach (100% = 45°). */
@@ -249,42 +269,67 @@ export interface EavesCut {
   cutHeight: number
   /** Wysokość krokwi zmierzona w pionie, na ukos przekroju [mm]. */
   verticalHeight: number
+  /** O ile deska schodzi poniżej dolnego końca cięcia pionowego [mm]. */
+  reveal: number
+  /** Długość cięcia poziomego, mierzona w poziomie od czoła krokwi [mm]. */
+  horizontalCut: number
   /** Czy cięcie mieści się w krokwi. */
   fits: boolean
 }
 
 /**
- * Liczy pionowe cięcie na końcu krokwi (odpowiedzi Jonasza, punkt 56).
+ * Liczy zakończenie krokwi przy okapie (odpowiedzi Jonasza, punkty 56, 92 i 95).
  *
- * O wysokości cięcia decyduje deska podrynnowa, a nie sama krokiew: deska ma
- * zasłonić czoło krokwi i przyjąć hak rynny, więc krokiew tnie się pionowo
- * o dwa centymetry NIŻEJ niż wysokość deski. Przykład Jonasza: deska 20 cm →
- * krokiew w cięciu pionowym 18 cm.
+ * Koniec krokwi ma DWA cięcia, nie jedno:
  *
- * Cięcie nie może być wyższe niż sama krokiew mierzona w pionie — a mierzy się
- * ją na ukos, więc wynosi h / cos α i jest zauważalnie większa od wysokości
- * przekroju.
+ *  1. PIONOWE — jego wysokość dyktuje deska podrynnowa, a nie sama krokiew.
+ *     Deska ma zasłonić czoło krokwi i przyjąć hak rynny, więc tnie się
+ *     o odsadzkę niżej niż wysokość deski. Przykład Jonasza: deska 20 cm →
+ *     krokiew w cięciu pionowym 18 cm.
+ *
+ *  2. POZIOME — od dolnego końca cięcia pionowego w głąb krokwi, aż spotka
+ *     jej dolną krawędź. Dzięki niemu deska schodzi o te 2–3 cm niżej niż
+ *     spód krokwi i zostaje przestrzeń na podbitkę: „boazeria 2 cm wypełni
+ *     tę przestrzeń".
+ *
+ * Odsadzka nie jest więc kosmetyką ani stałą — to grubość przyszłej podbitki,
+ * dlatego jest polem, a nie liczbą wpisaną w kod.
+ *
+ * Długość cięcia poziomego wychodzi z geometrii: dolna krawędź krokwi wznosi
+ * się w stronę kalenicy jak z = x·tg α, a cięcie poziome biegnie na poziomie
+ * (wysokość krokwi w pionie − cięcie pionowe) poniżej górnej krawędzi. Stąd
+ *
+ *     poziom = (h / cos α − cięcie) / tg α
+ *
+ * Przy dachu płaskim jak stół cięcie poziome nie ma gdzie się skończyć —
+ * zwracamy wtedy zero zamiast dzielić przez zero.
  */
 export function eavesCut(
   fasciaHeight: number,
   rafterHeight: number,
   pitchDeg: number,
+  reveal: number = FASCIA_REVEAL,
 ): EavesCut {
-  const cos = Math.cos(deg2rad(pitchDeg))
+  const a = deg2rad(pitchDeg)
+  const cos = Math.cos(a)
+  const tan = Math.tan(a)
   const verticalHeight = cos > 1e-9 ? rafterHeight / cos : rafterHeight
-  const cutHeight = Math.max(0, fasciaHeight - FASCIA_REVEAL)
+  const cutHeight = Math.max(0, fasciaHeight - reveal)
+  const zapas = Math.max(0, verticalHeight - cutHeight)
   return {
     fasciaHeight,
     cutHeight,
     verticalHeight,
+    reveal,
+    horizontalCut: tan > 1e-9 ? zapas / tan : 0,
     fits: cutHeight <= verticalHeight + 1e-9,
   }
 }
 
 /**
- * O tyle cięcie krokwi jest niższe od deski podrynnowej [mm].
- * Ta odsadzka sprawia, że deska wystaje ponad czoło krokwi i można ją
- * wyrównać sznurem niezależnie od tego, jak dokładnie wyszły same krokwie.
+ * Domyślna odsadzka deski podrynnowej [mm] — o tyle deska schodzi niżej niż
+ * dolny koniec cięcia pionowego. Ta szczelina to miejsce na podbitkę, więc
+ * przy grubszej boazerii cieśla zostawia jej więcej.
  */
 export const FASCIA_REVEAL = 20
 
