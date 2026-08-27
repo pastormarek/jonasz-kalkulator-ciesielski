@@ -498,19 +498,56 @@ export function warsztat() {
       return dodaj(o, P(o.x, o.y, o.od), P(o.x, o.y, o.do), P(0, 1, 0))
     },
 
-    /** Element poziomy biegnący wzdłuż mebla (oś X). */
+    /**
+     * Element poziomy biegnący wzdłuż mebla (oś X).
+     *
+     * `pochylenie` to kąt odchylenia od pionu w radianach — dla deski, która
+     * ma leżeć w płaszczyźnie odchylonego oparcia, a nie płasko jak półka.
+     * Bez niego deska oparcia fotela wyglądała jak wysunięta szuflada; cieśla
+     * ujął to krótko: „zawsze deska jest montowana prawie pionowo lub pod
+     * kątem, jakim biegnie oparcie".
+     */
     wzdluz(
-      o: Wspolne & { od: number; do: number; y: number; z: number; obrot?: Obrot },
+      o: Wspolne & {
+        od: number
+        do: number
+        y: number
+        z: number
+        obrot?: Obrot
+        pochylenie?: number
+      },
     ) {
-      const gora = o.obrot === 'sztorc' ? P(0, 0, 1) : P(0, 1, 0)
+      const gora =
+        o.pochylenie !== undefined
+          ? P(0, Math.sin(o.pochylenie), Math.cos(o.pochylenie))
+          : o.obrot === 'sztorc'
+            ? P(0, 0, 1)
+            : P(0, 1, 0)
       return dodaj(o, P(o.od, o.y, o.z), P(o.do, o.y, o.z), gora)
     },
 
-    /** Element poziomy biegnący w głąb mebla (oś Y). */
+    /**
+     * Element poziomy biegnący w głąb mebla (oś Y).
+     *
+     * `pochylenie` działa jak przy `wzdluz`, tylko że w płaszczyźnie XZ —
+     * dla listew leżących na odchylonym oparciu leżanki.
+     */
     wszerz(
-      o: Wspolne & { od: number; do: number; x: number; z: number; obrot?: Obrot },
+      o: Wspolne & {
+        od: number
+        do: number
+        x: number
+        z: number
+        obrot?: Obrot
+        pochylenie?: number
+      },
     ) {
-      const gora = o.obrot === 'sztorc' ? P(0, 0, 1) : P(1, 0, 0)
+      const gora =
+        o.pochylenie !== undefined
+          ? P(Math.sin(o.pochylenie), 0, Math.cos(o.pochylenie))
+          : o.obrot === 'sztorc'
+            ? P(0, 0, 1)
+            : P(1, 0, 0)
       return dodaj(o, P(o.x, o.od, o.z), P(o.x, o.do, o.z), gora)
     },
 

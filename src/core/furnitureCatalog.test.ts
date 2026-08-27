@@ -237,3 +237,60 @@ describe('przełączanie mebla', () => {
     expect(wymiary.dlugosc).toBeUndefined()
   })
 })
+
+describe('deski oparcia leżą w płaszczyźnie oparcia', () => {
+  // Cieśla obejrzał wizualizacje i wytknął to wprost: „przy oparciach ławek
+  // narysowałeś deski w poziomie, gdzie nigdy tak się nie stosuje — zawsze
+  // deska jest montowana prawie pionowo lub pod kątem, jakim biegnie oparcie".
+  //
+  // Płaszczyznę oparcia wyznaczają jego słupki, więc sprawdzamy to bez
+  // wpisywania kątów do testu: kierunek wysokości deski musi pokrywać się
+  // z kierunkiem, w którym biegnie słupek.
+  const iloczyn = (a: { x: number; y: number; z: number }, b: typeof a) =>
+    a.x * b.x + a.y * b.y + a.z * b.z
+
+  const kierunek = (c: { start: { x: number; y: number; z: number }; koniec: typeof c.start }) => {
+    const v = { x: c.koniec.x - c.start.x, y: c.koniec.y - c.start.y, z: c.koniec.z - c.start.z }
+    const d = Math.hypot(v.x, v.y, v.z) || 1
+    return { x: v.x / d, y: v.y / d, z: v.z / d }
+  }
+
+  for (const przepis of KATALOG_MEBLI) {
+    const czesci = policz(przepis.id, {}).czesci
+    const slupki = czesci.filter((c) => /słupek oparcia|noga tylna z oparciem|bok oparcia/i.test(c.nazwa))
+    const deski = czesci.filter((c) => /^(deska|listwa) oparcia/i.test(c.nazwa))
+    if (!slupki.length || !deski.length) continue
+
+    it(`${przepis.nazwa}: deski idą wzdłuż słupków oparcia`, () => {
+      const wzdluzOparcia = kierunek(slupki[0])
+      for (const d of deski) {
+        // Wysokość przekroju deski ma iść wzdłuż oparcia; deska leżąca płasko
+        // ma ten kierunek prostopadły i iloczyn spada do zera.
+        expect(Math.abs(iloczyn(d.gora, wzdluzOparcia))).toBeGreaterThan(0.9)
+      }
+    })
+  }
+})
+
+describe('klej ciesielski', () => {
+  // Punkt 110: „licz wkręty i klej ciesielski (klej jest ważny)".
+  it('każdy mebel dostaje klej w zestawieniu i uwagę o nim', () => {
+    for (const przepis of KATALOG_MEBLI) {
+      const w = policz(przepis.id, {})
+      const klej = w.fasteners.find((f) => /klej/i.test(f.name))
+      expect(klej, przepis.nazwa).toBeDefined()
+      expect(klej!.count).toBeGreaterThan(0)
+      expect(klej!.unit).toBe('g')
+      expect(w.notes.some((n) => /klej/i.test(n)), przepis.nazwa).toBe(true)
+    }
+  })
+
+  it('mebel na dwór wymaga kleju wodoodpornego, do wnętrza wystarczy zwykły', () => {
+    const lawka = policz('lawka-z-oparciem', {}).fasteners.find((f) => /klej/i.test(f.name))!
+    expect(lawka.name).toContain('D4')
+
+    const doDomu = KATALOG_MEBLI.find((p) => p.kategoria === 'dom')!
+    const klej = policz(doDomu.id, {}).fasteners.find((f) => /klej/i.test(f.name))!
+    expect(klej.name).toContain('D3')
+  })
+})

@@ -420,7 +420,9 @@ export const PRZEPISY_SIEDZISKA: PrzepisMebla[] = [
           do: szer - wciecie,
           y,
           z,
-          obrot: 'plask',
+          // Deska leży w płaszczyźnie oparcia, a nie płasko: przy odchyleniu
+          // 25° różnica to nie kosmetyka, tylko inny mebel.
+          pochylenie: kat,
           wkretow: 4,
           uwaga: i === listw - 1 ? 'górną krawędź wyokrąglij' : undefined,
         })
@@ -595,12 +597,15 @@ export const PRZEPISY_SIEDZISKA: PrzepisMebla[] = [
       const listwyOparcia = Math.max(3, Math.round((dlOparcia - 60) / 82))
       for (let i = 0; i < listwyOparcia; i++) {
         const t = 40 + (i * (dlOparcia - 80)) / Math.max(1, listwyOparcia - 1)
+        // Listwa leży na ramce oparcia, więc jest pochylona razem z nią —
+        // płaska listwa na odchylonym oparciu wygląda jak schodek.
         s.wszerz({
           nazwa: 'Listwa oparcia',
           x: dlLezyska + Math.sin(kat) * t,
           od: yBokow[0] - 20,
           do: yBokow[1] + 20,
           z: wys - 45 + Math.cos(kat) * t + 45,
+          pochylenie: kat,
           wkretow: 4,
         })
       }
@@ -751,7 +756,7 @@ export const PRZEPISY_SIEDZISKA: PrzepisMebla[] = [
           do: xLawki[1],
           y: gl / 2 - 45 + Math.sin(katOparcia) * t,
           z: zSiedziska + Math.cos(katOparcia) * t,
-          obrot: 'plask',
+          pochylenie: katOparcia,
           wkretow: 4,
         })
       }

@@ -132,6 +132,8 @@ export function calculateFurniture(input: FurnitureInput): FurnitureCalculation 
 
   // --- wkręty ---
   const fasteners = policzWkrety(czesci)
+  const gdzieStoiMebel = przepis.wilgoc ?? (przepis.kategoria === 'dom' ? 'wnetrze' : 'zewnatrz')
+  fasteners.push(klejCiesielski(czesci, gdzieStoiMebel !== 'wnetrze'))
   const laczniki = przepis.laczniki ? przepis.laczniki(wymiary) : []
 
   // --- wykończenie ---
@@ -204,6 +206,15 @@ export function calculateFurniture(input: FurnitureInput): FurnitureCalculation 
     )
   }
 
+  // Cieśla dopisał to sam, pytany o złącza w meblach: „licz wkręty i klej
+  // ciesielski (klej jest ważny)". Wkręt trzyma mebel od razu, klej sprawia,
+  // że po kilku sezonach nadal się nie chwieje.
+  notes.push(
+    gdzieStoi === 'wnetrze'
+      ? 'Każdy styk posmaruj klejem do drewna przed skręceniem. Wkręt trzyma połączenie od razu, ale to klej nie pozwala mu się rozklekotać.'
+      : 'Każdy styk posmaruj klejem do drewna przed skręceniem — na dworze wyłącznie wodoodpornym, klasy D4. Sam wkręt z czasem wyrobi sobie miejsce w drewnie i połączenie zacznie chodzić.',
+  )
+
   // --- instrukcja ---
   const kroki = zbudujKroki(przepis, pozycje, czesci)
 
@@ -258,6 +269,43 @@ function policzWkrety(czesci: Czesc[]): FastenerItem[] {
       note: 'z zapasem, zaokrąglone do pełnych dziesiątek',
     }))
 }
+
+/**
+ * Klej do połączeń.
+ *
+ * „Licz wkręty i klej ciesielski (klej jest ważny)" — bo wkręt trzyma
+ * mebel w kupie, ale to klej nie pozwala połączeniu się rozklekotać po
+ * kilku sezonach. Mebel stojący na dworze potrzebuje kleju wodoodpornego
+ * klasy D4; do wnętrza wystarczy D3.
+ *
+ * Zużycie liczymy z powierzchni styków: przyjmujemy, że każde miejsce
+ * wkręcenia to styk wielkości mniej więcej przekroju łączonej części,
+ * a producenci podają ok. 150 g na metr kwadratowy przy jednostronnym
+ * nakładaniu.
+ */
+function klejCiesielski(czesci: Czesc[], naZewnatrz: boolean): FastenerItem {
+  let stykiM2 = 0
+  for (const c of czesci) {
+    if (c.nieDrewno) continue
+    const ile = c.wkretow ?? WKRETOW_DOMYSLNIE
+    if (ile <= 0) continue
+    // Jeden styk na każde dwa wkręty — tyle mniej więcej wypada punktów
+    // przyłożenia na część przykręcaną z dwóch stron.
+    stykiM2 += Math.max(1, Math.round(ile / 2)) * ((c.b * c.h) / 1e6)
+  }
+  const gramy = Math.ceil((stykiM2 * KLEJ_G_NA_M2) / 10) * 10
+  return {
+    name: naZewnatrz ? 'Klej do drewna D4 (wodoodporny)' : 'Klej do drewna D3',
+    count: Math.max(100, gramy),
+    unit: 'g',
+    note: naZewnatrz
+      ? 'na wszystkie styki przed skręceniem; na dworze tylko klasa D4'
+      : 'na wszystkie styki przed skręceniem',
+  }
+}
+
+/** Zużycie kleju na metr kwadratowy styku [g] — z kart producentów. */
+const KLEJ_G_NA_M2 = 150
 
 function dlugoscWkreta(grubosc: number): number {
   const potrzebna = Math.min(grubosc + ZAKOTWIENIE, MAX_DLUGOSC_WKRETA)

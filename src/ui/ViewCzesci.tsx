@@ -17,6 +17,7 @@ import type { FurnitureCalculation } from '../core/furnitureMaterials'
 import type { PozycjaCzesci } from '../core/furniture'
 import { WYKONCZENIE_INFO } from '../core/furniture'
 import { Karta, Komunikat, Wynik } from './controls'
+import { RysunekCzesci } from './rysunkiCzesci'
 import { liczba, przekroj, odmiana } from './format'
 import { useDlugosc } from './units'
 
@@ -24,6 +25,8 @@ export function ViewCzesci({ wynik }: { wynik: FurnitureCalculation }) {
   const { dl } = useDlugosc()
   const litery = oznaczenia(wynik.pozycje)
   const sztukRazem = wynik.pozycje.reduce((s, p) => s + p.count, 0)
+  // Wspólna miara długości dla wszystkich rysunków tego mebla.
+  const najdluzszaCzesc = Math.max(...wynik.pozycje.filter((p) => !p.gotowy).map((p) => p.length), 1)
   const wkretowRazem = wynik.fasteners.reduce((s, f) => s + f.count, 0)
 
   return (
@@ -101,6 +104,30 @@ export function ViewCzesci({ wynik }: { wynik: FurnitureCalculation }) {
           Długości są gotowe do cięcia — bez naddatku, który doliczamy dopiero przy
           zamawianiu drewna. Zanim dotniesz całą serię, sprawdź pierwszą sztukę
           na sucho w meblu.
+        </p>
+      </Karta>
+
+      <Karta
+        tytul="Rysunki części"
+        podtytul="Każda część w trzech rzutach, z wymiarami. Do wydruku i na warsztat."
+        pelna
+      >
+        <div className="rysunki-czesci">
+          {wynik.pozycje
+            .filter((p) => !p.gotowy)
+            .map((p) => (
+              <RysunekCzesci
+                key={kluczPozycji(p)}
+                pozycja={p}
+                oznaczenie={litery.get(kluczPozycji(p)) ?? '?'}
+                najdluzsza={najdluzszaCzesc}
+              />
+            ))}
+        </div>
+        <p className="podpowiedz" style={{ marginTop: 12 }}>
+          Długość i przekrój mają osobne skale — deska półtorametrowa i gruba na
+          dwa centymetry narysowana w jednej skali byłaby włosem. Wymiary przy
+          krawędziach są prawdziwe i to według nich się odmierza.
         </p>
       </Karta>
 

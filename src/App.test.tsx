@@ -658,6 +658,34 @@ describe('wytyczne z trzeciej tury', () => {
 })
 
 describe('poprawki z czwartej tury', () => {
+  // Punkt 111: „każda deska, element drewniany — dokładnie wymiarowana
+  // z rysunkiem w każdej płaszczyźnie".
+  it('każda część mebla ma rysunek warsztatowy z wymiarami', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: /^Meble$/ }))
+    await zakladka(user, 'części i montaż')
+
+    const rysunki = screen.getAllByRole('img', { name: /Rysunek części/i })
+    expect(rysunki.length).toBeGreaterThan(3)
+    // Trzy rzuty na każdym rysunku, tak jak na rysunku warsztatowym.
+    for (const r of rysunki) {
+      expect(r.textContent).toContain('z góry')
+      expect(r.textContent).toContain('z boku')
+      expect(r.textContent).toContain('przekrój')
+    }
+  })
+
+  // Punkt 110: „licz wkręty i klej ciesielski (klej jest ważny)".
+  it('zestawienie mebla zawiera klej do drewna', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: /^Meble$/ }))
+    await zakladka(user, 'materiał')
+
+    expect(screen.getAllByText(/Klej do drewna/i).length).toBeGreaterThan(0)
+  })
+
   // Zakładka „Materiał" istnieje w każdej z trzech gałęzi, więc warunek
   // renderowania musi wskazywać rodzaj wprost. Kiedy brzmiał „nie wiata",
   // pod zestawieniem mebla doklejało się zestawienie więźby dachowej.

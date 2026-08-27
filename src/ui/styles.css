@@ -728,6 +728,103 @@ td small {
   font-weight: 600;
 }
 
+/* ---------- rysunki warsztatowe części mebla ---------- */
+
+.rysunki-czesci {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.rysunek-czesci {
+  margin: 0;
+  padding: 12px 14px 8px;
+  background: var(--tlo-karta);
+  border: 1px solid var(--linia);
+  border-radius: 10px;
+  /* Rysunek zabierany na warsztat ma nie pękać w połowie strony wydruku. */
+  break-inside: avoid;
+}
+
+.rysunek-czesci figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+.rysunek-czesci figcaption strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--akcent);
+  color: #fff;
+  font-size: 13px;
+}
+
+.rysunek-czesci figcaption span {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--tekst-slaby);
+  font-variant-numeric: tabular-nums;
+}
+
+.rysunek-czesci svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.rysunek-czesci text {
+  font-family: system-ui, sans-serif;
+  fill: var(--tekst-slaby);
+}
+
+.rysunek-czesci .rys-drewno {
+  fill: var(--akcent-jasny);
+  stroke: var(--akcent);
+  stroke-width: 1.6;
+}
+
+.rysunek-czesci .rys-przekroj {
+  /* Przekrój kreskujemy tak, jak kreskuje się przecięty materiał. */
+  fill: var(--akcent);
+  opacity: 0.75;
+}
+
+.rysunek-czesci .rys-wymiar line {
+  stroke: var(--tekst-slaby);
+  stroke-width: 1;
+}
+
+.rysunek-czesci .rys-liczba {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.rysunek-czesci .rys-opis {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.75;
+}
+
+.rysunek-czesci .rys-uwaga {
+  font-size: 12px;
+  fill: var(--tekst);
+}
+
+.rysunek-czesci .rys-uwaga-pod {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--tekst-slaby);
+}
+
 /* ---------- lista projektów ---------- */
 
 .lista-projektow {
