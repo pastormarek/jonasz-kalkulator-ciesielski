@@ -1,7 +1,14 @@
 import { describe, it, expect } from 'vitest'
 import { calculate } from './materials'
 import { defaultInput } from './defaults'
-import { zbudujModel, wierzcholki, policzEtapy, SCIANY, type Belka } from './model3d'
+import {
+  zbudujModel,
+  wierzcholki,
+  policzEtapy,
+  SCIANY,
+  type Belka,
+  type Punkt3,
+} from './model3d'
 import type { RoofInput } from './types'
 
 const model = (over: Partial<RoofInput> = {}) =>
@@ -14,16 +21,23 @@ const dlugosc = (b: Belka) =>
 const wg = (m: ReturnType<typeof model>, nazwa: string) =>
   m.belki.filter((b) => b.nazwa === nazwa)
 
+/** Środek odcinka — krawędzie mierzymy w połowie szerokości przekroju. */
+const srodek = (a: Punkt3, b: Punkt3): Punkt3 => ({
+  x: (a.x + b.x) / 2,
+  y: (a.y + b.y) / 2,
+  z: (a.z + b.z) / 2,
+})
+
 /** Dolna krawędź belki — w krokwi to linia bazowa wszystkich obliczeń. */
 function dolnaKrawedz(b: Belka) {
   const v = wierzcholki(b)
-  return { od: v[0], do: v[4] }
+  return { od: srodek(v[0], v[1]), do: srodek(v[4], v[5]) }
 }
 
 /** Górna krawędź belki, po tej samej stronie przekroju co dolna. */
 function gornaKrawedz(b: Belka) {
   const v = wierzcholki(b)
-  return { od: v[3], do: v[7] }
+  return { od: srodek(v[3], v[2]), do: srodek(v[7], v[6]) }
 }
 
 describe('model przestrzenny', () => {
@@ -129,10 +143,32 @@ describe('model przestrzenny', () => {
     expect(wg(m, 'Krokiew').every((b) => b.start.y < b.koniec.y)).toBe(true)
   })
 
-  it('kopertowy dokłada cztery krokwie narożne', () => {
+  it('kopertowy dokłada cztery krożyny', () => {
     const m = model({ shape: 'hip', truss: 'rafter' })
-    expect(wg(m, 'Krokiew narożna')).toHaveLength(4)
+    expect(wg(m, 'Krożyna')).toHaveLength(4)
     expect(wg(m, 'Murłata szczytowa')).toHaveLength(2)
+  })
+
+  // Do zestawienia materiału kulawki wchodziły od początku, ale model ich
+  // nie rysował i skosy koperty zostawały puste.
+  it('kopertowy wypełnia skosy kulawkami sięgającymi krożyn', () => {
+    const w = calculate({ ...defaultInput(), shape: 'hip', truss: 'rafter', span: 8000, length: 14000 })
+    const m = zbudujModel(w)
+    const kulawki = wg(m, 'Kulawka')
+    expect(kulawki.length).toBeGreaterThan(8)
+
+    // Każda kończy się na krożynie, czyli w rzucie na przekątnej naroża.
+    // Mierzymy po linii bazowej, bo oś biegnie pół wysokości przekroju wyżej.
+    for (const k of kulawki) {
+      const koniec = dolnaKrawedz(k).do
+      const odNarozaX = Math.min(koniec.x, 14000 - koniec.x)
+      const odNarozaY = Math.min(koniec.y, 8000 - koniec.y)
+      expect(Math.abs(odNarozaX - odNarozaY)).toBeLessThan(1)
+    }
+
+    // Kulawki są krótsze od krokwi zwykłej — to je definiuje.
+    const zwykla = dlugosc(wg(m, 'Krokiew')[0])
+    for (const k of kulawki) expect(dlugosc(k)).toBeLessThan(zwykla)
   })
 
   it('więźba płatwiowa stawia słupy i płatwie', () => {

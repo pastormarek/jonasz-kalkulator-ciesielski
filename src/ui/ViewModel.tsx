@@ -81,6 +81,10 @@ export function ViewModel({
   const [tryb, setTryb] = useState<'calosc' | 'montaz'>('calosc')
   const [krok, setKrok] = useState(0)
   const [pokazWymiary, setPokazWymiary] = useState(true)
+  // Podpisy elementów są wyłączone na starcie: przy pierwszym spojrzeniu
+  // liczy się bryła, a nazwy zasłaniają to, co się ogląda. Włącza je ten,
+  // kto uczy się więźby albo tłumaczy ją komuś innemu.
+  const [pokazPodpisy, setPokazPodpisy] = useState(false)
   const [pokazPoprzednie, setPokazPoprzednie] = useState(true)
   // Cieśla poprosił wprost, żeby nie rysować łat na konstrukcji: zasłaniają
   // to, co się ogląda, a jak wygląda łata, każdy wie. Zostają w zestawieniu
@@ -151,6 +155,7 @@ export function ViewModel({
       etapBiezacy,
       pokazPoprzednie: tryb === 'calosc' || pokazPoprzednie,
       pokazWymiary,
+      pokazPodpisy,
       pokrycie: pokazPokrycie ? kolorPokrycia : null,
     })
   }, [
@@ -161,6 +166,7 @@ export function ViewModel({
     tryb,
     pokazPoprzednie,
     pokazWymiary,
+    pokazPodpisy,
     pokazPokrycie,
     kolorPokrycia,
   ])
@@ -370,6 +376,17 @@ export function ViewModel({
             />
             <span className="przelacznik-opis">
               <strong>Wymiary</strong>
+            </span>
+          </label>
+          <label className="przelacznik" style={{ minHeight: 40 }}>
+            <input
+              type="checkbox"
+              checked={pokazPodpisy}
+              onChange={(e) => setPokazPodpisy(e.target.checked)}
+            />
+            <span className="przelacznik-opis">
+              <strong>Podpisy</strong>
+              <span>nazwa przy każdym rodzaju elementu</span>
             </span>
           </label>
           {maPokrycie && (

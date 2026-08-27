@@ -151,6 +151,8 @@ export interface OpcjeRysowania {
   pokazPoprzednie: boolean
   /** Czy rysować linie wymiarowe. */
   pokazWymiary: boolean
+  /** Czy podpisywać elementy konstrukcji nazwami. */
+  pokazPodpisy?: boolean
   /**
    * Kolor pokrycia dachu albo null, gdy pokrycia nie pokazujemy.
    * Połacie rysujemy razem z belkami, w tej samej kolejności głębokości —
@@ -314,6 +316,10 @@ export function rysuj(
     ctx.strokeStyle = s.obrys
     ctx.lineWidth = 0.6
     ctx.stroke()
+  }
+
+  if (opcje.pokazPodpisy) {
+    rysujPodpisy(ctx, model, widok, paleta, szerokosc, wysokosc, opcje.etapyAktywne)
   }
 
   if (opcje.pokazWymiary) {
@@ -673,6 +679,122 @@ function rysujWymiary(
     ctx.globalAlpha = 1
     ctx.fillStyle = paleta.tekst
     ctx.fillText(wym.etykieta, sx, sy)
+  }
+
+  ctx.restore()
+}
+
+/**
+ * Podpisuje elementy konstrukcji nazwami — po jednym podpisie na rodzaj.
+ *
+ * Cieśla przysłał rysunek z opisanymi elementami i poprosił o to samo
+ * w kalkulatorze: „dołóż też pozostałe" — czyli komplet, od murłaty
+ * i krokwi po jętkę, miecz, kulawkę i krożynę. Bez tego ktoś, kto dopiero
+ * uczy się więźby, widzi plątaninę belek i nie wie, która jest która.
+ *
+ * Podpisujemy RODZAJ, nie każdą sztukę: dwadzieścia razy „Krokiew" zamieniłoby
+ * rysunek w ścianę tekstu. Wybieramy dla każdej nazwy belkę najbliższą
+ * obserwatora — jest największa i najlepiej widoczna — a podpisy, które
+ * nachodzą na już postawione, po prostu pomijamy.
+ */
+function rysujPodpisy(
+  ctx: CanvasRenderingContext2D,
+  model: Model3D,
+  widok: Widok,
+  paleta: Paleta,
+  szerokosc: number,
+  wysokosc: number,
+  etapyAktywne: Set<string>,
+): void {
+  // Dla każdej nazwy trzymamy tę sztukę, która jest najbliżej obserwatora.
+  const najlepsze = new Map<string, { x: number; y: number; glebia: number }>()
+
+  for (const belka of model.belki) {
+    if (!etapyAktywne.has(belka.etap)) continue
+    const srodek = {
+      x: (belka.start.x + belka.koniec.x) / 2,
+      y: (belka.start.y + belka.koniec.y) / 2,
+      z: (belka.start.z + belka.koniec.z) / 2,
+    }
+    const punkt = widok.rzutuj(srodek)
+    if (!punkt.widoczny) continue
+    if (punkt.x < 40 || punkt.x > szerokosc - 40 || punkt.y < 20 || punkt.y > wysokosc - 20) continue
+
+    const dotad = najlepsze.get(belka.nazwa)
+    if (!dotad || punkt.glebia < dotad.glebia) {
+      najlepsze.set(belka.nazwa, { x: punkt.x, y: punkt.y, glebia: punkt.glebia })
+    }
+  }
+
+  ctx.save()
+  ctx.font = '600 12px system-ui, sans-serif'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.lineWidth = 1
+
+  // Najpierw elementy konstrukcji, potem łacenie. Cieśla wymienił z nazwy
+  // murłatę, krokiew, płatew, słupek, kleszcze, jętkę, miecz, kulawkę
+  // i krożynę — te mają dostać podpis nawet wtedy, gdy miejsca starczy
+  // tylko dla części z nich.
+  const drugorzedne = new Set(['Łata', 'Kontrłata'])
+  const kolejnosc = [...najlepsze.entries()].sort((a, b) => {
+    const waga = Number(drugorzedne.has(a[0])) - Number(drugorzedne.has(b[0]))
+    return waga !== 0 ? waga : a[1].glebia - b[1].glebia
+  })
+  const zajete: Array<{ x1: number; y1: number; x2: number; y2: number }> = []
+
+  // Kontrłata biegnie dokładnie osią krokwi, a kleszcze tuż przy płatwi,
+  // więc pierwsze proponowane miejsce często jest już zajęte. Zanim
+  // zrezygnujemy z podpisu, szukamy dla niego wolnego miejsca obok.
+  const proby: Array<[number, number]> = [
+    [0, -22],
+    [0, -46],
+    [0, 26],
+    [72, -22],
+    [-72, -22],
+    [72, 26],
+    [-72, 26],
+    [0, -70],
+  ]
+
+  for (const [nazwa, punkt] of kolejnosc) {
+    const szer = ctx.measureText(nazwa).width
+    let miejsce: { px: number; py: number; ramka: (typeof zajete)[number] } | null = null
+
+    for (const [dx, dy] of proby) {
+      const px = punkt.x + dx
+      const py = punkt.y + dy
+      if (px - szer / 2 < 4 || px + szer / 2 > szerokosc - 4) continue
+      if (py < 14 || py > wysokosc - 14) continue
+      const ramka = { x1: px - szer / 2 - 5, y1: py - 10, x2: px + szer / 2 + 5, y2: py + 10 }
+      const koliduje = zajete.some(
+        (z) => !(ramka.x2 < z.x1 || ramka.x1 > z.x2 || ramka.y2 < z.y1 || ramka.y1 > z.y2),
+      )
+      if (!koliduje) {
+        miejsce = { px, py, ramka }
+        break
+      }
+    }
+    if (!miejsce) continue
+
+    const { px, py, ramka } = miejsce
+    zajete.push(ramka)
+
+    // Kreska od podpisu do elementu, którego dotyczy.
+    ctx.strokeStyle = paleta.wymiar
+    ctx.beginPath()
+    ctx.moveTo(px, py < punkt.y ? ramka.y2 : ramka.y1)
+    ctx.lineTo(punkt.x, punkt.y)
+    ctx.stroke()
+
+    ctx.fillStyle = paleta.tlo
+    ctx.globalAlpha = 0.88
+    ctx.fillRect(ramka.x1, ramka.y1, ramka.x2 - ramka.x1, ramka.y2 - ramka.y1)
+    ctx.globalAlpha = 1
+    ctx.strokeStyle = paleta.przyciemnioneKrawedz
+    ctx.strokeRect(ramka.x1, ramka.y1, ramka.x2 - ramka.x1, ramka.y2 - ramka.y1)
+    ctx.fillStyle = paleta.tekst
+    ctx.fillText(nazwa, px, py)
   }
 
   ctx.restore()

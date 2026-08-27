@@ -539,6 +539,49 @@ function dodajPlatwie(
           b: input.postSection.b,
           h: input.postSection.h,
         })
+
+        // Miecz to przekątna trójkąta równoramiennego: jedno ramię odmierzone
+        // w dół po słupie, drugie w bok po płatwi.
+        if (input.hasBraces && zPlatwi > input.braceArm) {
+          for (const bok of [1, -1] as const) {
+            const xPlatwi = x + bok * input.braceArm
+            if (xPlatwi < 0 || xPlatwi > input.length) continue
+            dodaj({
+              nazwa: 'Miecz',
+              etap: 'zastrzaly',
+              start: p3(x, yPlatwi, zPlatwi - input.braceArm),
+              koniec: p3(xPlatwi, yPlatwi, zPlatwi),
+              gora: p3(0, 1, 0),
+              b: input.braceSection.b,
+              h: input.braceSection.h,
+            })
+          }
+        }
+
+        // Kleszcze to para desek obejmujących słup i obie krokwie z boków,
+        // na wysokości płatwi. Rysujemy je tylko przy słupach jednej połaci,
+        // bo jedna para spina cały przekrój, a nie każdą stronę osobno.
+        if (input.hasClamps && znak === 1) {
+          for (const bok of [1, -1] as const) {
+            dodaj({
+              nazwa: 'Kleszcze',
+              etap: 'jetki',
+              start: p3(
+                x + (bok * (input.postSection.b + input.clampSection.b)) / 2,
+                0,
+                zPlatwi + input.clampSection.h / 2,
+              ),
+              koniec: p3(
+                x + (bok * (input.postSection.b + input.clampSection.b)) / 2,
+                input.span,
+                zPlatwi + input.clampSection.h / 2,
+              ),
+              gora: p3(0, 0, 1),
+              b: input.clampSection.b,
+              h: input.clampSection.h,
+            })
+          }
+        }
       }
     }
   }
@@ -570,7 +613,7 @@ function dodajNarozaKoperty(
 
   for (const n of naroza) {
     dodaj({
-      nazwa: 'Krokiew narożna',
+      nazwa: 'Krożyna',
       etap: 'krokwie',
       start: n.od,
       koniec: n.do,
@@ -579,6 +622,8 @@ function dodajNarozaKoperty(
       h: input.rafterSection.h,
     })
   }
+
+  dodajKulawki(dodaj, w, span, dlugosc, a, eaves)
 
   // Kalenica łączy wierzchołki obu naroży.
   if (dlugosc > span) {
@@ -591,6 +636,86 @@ function dodajNarozaKoperty(
       b: input.rafterSection.b,
       h: input.rafterSection.h,
     })
+  }
+}
+
+/**
+ * Dokłada kulawki dachu kopertowego.
+ *
+ * Kulawka to krokiew skrócona: opiera się jak każda inna na murłacie, ale
+ * u góry nie dochodzi do kalenicy, tylko kończy się na krożynie. Im bliżej
+ * naroża, tym jest krótsza — dlatego skos wygląda jak wachlarz.
+ *
+ * Do zestawienia materiału kulawki wchodziły od początku, ale model ich nie
+ * rysował i skosy koperty zostawały puste. Widać to było zawsze, gdy ktoś
+ * pokazywał kopertę klientowi.
+ *
+ * Krożyna biegnie w rzucie pod 45°, więc jej punkt nad narożem odległym
+ * o `t` od naroża budynku ma obie współrzędne równe `t`. Stąd kulawka
+ * postawiona w odległości `t` kończy się dokładnie na `t` — i to wystarczy,
+ * żeby trafić w krożynę bez liczenia przecięć.
+ */
+function dodajKulawki(
+  dodaj: (b: Omit<Belka, 'id'>) => void,
+  w: Calculation,
+  span: number,
+  dlugosc: number,
+  a: number,
+  eaves: number,
+): void {
+  const { input, layout } = w
+  const halfSpan = span / 2
+  const spacing = layout.spacing
+  const naOs = input.rafterSection.h / 2
+  const zOkapu = -eaves * Math.tan(a)
+
+  const dodajKulawke = (start: Punkt3, koniec: Punkt3, gora: Punkt3) =>
+    dodaj({
+      nazwa: 'Kulawka',
+      etap: 'krokwie',
+      start: przesun(start, gora, naOs),
+      koniec: przesun(koniec, gora, naOs),
+      gora,
+      b: input.rafterSection.b,
+      h: input.rafterSection.h,
+    })
+
+  // --- połacie wzdłużne: kulawki wachlarzem przy obu narożach ---
+  for (const znak of [1, -1] as const) {
+    const yOparcia = znak === 1 ? 0 : span
+    const gora = p3(0, -znak * Math.sin(a), Math.cos(a))
+    for (let i = 1; i * spacing < halfSpan; i++) {
+      const t = i * spacing
+      // Kulawka kończy się na krożynie w odległości t od naroża budynku,
+      // więc jej wzniesienie jest takie samo jak krokwi o tym biegu.
+      const z = t * Math.tan(a)
+      for (const x of [t, dlugosc - t]) {
+        dodajKulawke(
+          p3(x, yOparcia - znak * eaves, zOkapu),
+          p3(x, yOparcia + znak * t, z),
+          gora,
+        )
+      }
+    }
+  }
+
+  // --- skosy szczytowe: kulawki biegną w poprzek, wzdłuż osi budynku ---
+  for (const znakX of [1, -1] as const) {
+    const xOparcia = znakX === 1 ? 0 : dlugosc
+    const gora = p3(-znakX * Math.sin(a), 0, Math.cos(a))
+    for (let i = 1; i * spacing < halfSpan; i++) {
+      const t = i * spacing
+      const z = t * Math.tan(a)
+      // Symetrycznie względem osi budynku: jedna kulawka bliżej połaci
+      // przedniej, druga tylnej.
+      for (const y of [t, span - t]) {
+        dodajKulawke(
+          p3(xOparcia - znakX * eaves, y, zOkapu),
+          p3(xOparcia + znakX * t, y, z),
+          gora,
+        )
+      }
+    }
   }
 }
 

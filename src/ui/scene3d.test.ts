@@ -34,6 +34,7 @@ function atrapaPlotna() {
   const ctx = {
     clearRect: () => {},
     fillRect: () => {},
+    strokeRect: () => {},
     beginPath: () => {},
     closePath: () => {},
     moveTo: (x: number, y: number) => wierzcholki.push({ x, y }),
@@ -278,5 +279,54 @@ describe('rysowanie modelu', () => {
     }
 
     expect(zrob(model.promien * 2)).toBeGreaterThan(zrob(model.promien * 6))
+  })
+})
+
+describe('podpisy elementów', () => {
+  const zPodpisami = (m = model, pokazPodpisy = true) => {
+    const p = atrapaPlotna()
+    rysuj(p.ctx, 1000, 700, {
+      model: m,
+      kamera: { ...kameraPoczatkowa(m), dystans: m.promien * 2.9 },
+      paleta: PALETA,
+      etapyAktywne: wszystkieEtapy,
+      etapBiezacy: null,
+      pokazPoprzednie: true,
+      pokazWymiary: false,
+      pokazPodpisy,
+    })
+    return p.teksty
+  }
+
+  it('podpisuje elementy wymienione przez cieślę', () => {
+    const platwiowy = zbudujModel(
+      calculate({ ...defaultInput(), truss: 'purlin', purlinCount: 1, span: 8000, length: 12000 }),
+    )
+    const teksty = zPodpisami(platwiowy)
+    for (const nazwa of ['Murłata', 'Krokiew', 'Słup', 'Kleszcze', 'Miecz']) {
+      expect(teksty).toContain(nazwa)
+    }
+    expect(teksty.some((t) => t.startsWith('Płatew'))).toBe(true)
+  })
+
+  it('koperta podpisuje krożynę i kulawkę', () => {
+    const koperta = zbudujModel(
+      calculate({ ...defaultInput(), shape: 'hip', truss: 'rafter', span: 8000, length: 14000 }),
+    )
+    const teksty = zPodpisami(koperta)
+    expect(teksty).toContain('Krożyna')
+    expect(teksty).toContain('Kulawka')
+  })
+
+  // Każdy rodzaj dostaje jeden podpis — dwadzieścia razy „Krokiew" zamieniłoby
+  // rysunek w ścianę tekstu.
+  it('podpisuje rodzaj, a nie każdą sztukę', () => {
+    const teksty = zPodpisami()
+    const unikalne = new Set(teksty)
+    expect(unikalne.size).toBe(teksty.length)
+  })
+
+  it('bez włączonej opcji nie pisze niczego', () => {
+    expect(zPodpisami(model, false)).toHaveLength(0)
   })
 })
