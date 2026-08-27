@@ -656,13 +656,20 @@ function countCutRafters(
   let removed = 0
 
   openings.forEach((op, idx) => {
+    // Otwór w konstrukcji jest większy niż sam komin czy okno: zostaje luz
+    // na osadzenie i regulację. Przy oknie to nie jest zapas „na wszelki
+    // wypadek", tylko wymóg montażu — kołnierz musi mieć gdzie wejść.
+    const luz = op.kind === 'okno' ? 2 * LUZ_OKNA : 0
+    const swiatloSzer = op.width + luz
+    const swiatloWys = op.height + luz
+
     // Ile osi krokwi mieści się w świetle otworu.
-    const cutCount = Math.max(0, Math.floor(op.width / layout.spacing))
+    const cutCount = Math.max(0, Math.floor(swiatloSzer / layout.spacing))
     removed += cutCount
 
     if (cutCount > 0) {
       const a = deg2rad(input.pitchDeg)
-      const openingAlongSlope = op.height / Math.cos(a)
+      const openingAlongSlope = swiatloWys / Math.cos(a)
       // Odcinek nad otworem i pod otworem — razem krótsze niż pełna krokiew.
       const fullLength = slopeGeometry(
         input.shape === 'shed' ? input.span : input.span / 2,
@@ -679,17 +686,40 @@ function countCutRafters(
       })
     }
 
-    exchanges.push({
-      name: `Wymian przy otworze ${idx + 1} (${op.kind})`,
-      section: input.rafterSection,
-      length: withAllowance(op.width + 2 * input.rafterSection.b, input.cutAllowance),
-      count: 2,
-      note: 'poprzeczka nad i pod otworem, oparta na sąsiednich krokwiach',
-    })
+    // Wymian jest konieczny wtedy, gdy otwór faktycznie przerywa krokiew.
+    // Cieśla podał granicę: „powyżej 100 cm szerokości okna". Węższe okno
+    // mieści się między krokwiami i wymianów nie potrzebuje — komin obudowuje
+    // się nimi zawsze, bo wokół niego i tak trzeba zrobić ramę.
+    const trzebaWymianu = op.kind === 'komin' || cutCount > 0 || op.width > GRANICA_WYMIANU
+    if (trzebaWymianu) {
+      exchanges.push({
+        name: `Wymian przy otworze ${idx + 1} (${op.kind})`,
+        section: input.rafterSection,
+        length: withAllowance(swiatloSzer + 2 * input.rafterSection.b, input.cutAllowance),
+        count: 2,
+        note: `poprzeczka nad i pod otworem, oparta na sąsiednich krokwiach; światło ${fmt(swiatloSzer)} × ${fmt(swiatloWys)} mm`,
+      })
+    }
   })
 
   return { removed, pieces, exchanges }
 }
+
+/**
+ * Luz wokół okna dachowego [mm], z każdej strony.
+ *
+ * Cieśla podał 1–2 cm i doprecyzował, że ten sam luz zostaje PO OBWODZIE —
+ * także nad oknem i pod nim, nie tylko po bokach. Bierzemy środek zakresu:
+ * przy oknie 78 × 118 cm daje to otwór 81 × 121 cm, czyli dokładnie tyle,
+ * ile podał w przykładzie.
+ */
+export const LUZ_OKNA = 15
+
+/**
+ * Szerokość okna, powyżej której trzeba wymianów [mm].
+ * „Granica wymianu — powyżej 100 cm."
+ */
+export const GRANICA_WYMIANU = 1000
 
 /**
  * Sprawdza łączenie krokwi nad podporą pośrednią.

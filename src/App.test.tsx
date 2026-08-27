@@ -658,6 +658,34 @@ describe('wytyczne z trzeciej tury', () => {
 })
 
 describe('poprawki z czwartej tury', () => {
+  // Punkt 104: „rzut z góry z wymiarami, rozstawami krokwi". Punkt 105:
+  // „oba do wyboru, większość wybierze A4".
+  it('zakładka Krokwie ma rzut z góry z wyborem formatu kartki', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await zakladka(user, 'krokwie')
+
+    const rzut = screen.getByRole('img', { name: /Rzut dachu z góry/i })
+    expect(rzut.textContent).toMatch(/rozstaw/i)
+    expect(rzut.textContent).toMatch(/długość/i)
+    expect(rzut.textContent).toMatch(/rozpiętość/i)
+
+    // A4 jest domyślne, ale A3 też da się wybrać.
+    expect(screen.getByRole('button', { name: /^A4$/ })).toHaveProperty('ariaPressed', 'true')
+    await user.click(screen.getByRole('button', { name: /^A3$/ }))
+    expect(screen.getByRole('button', { name: /^A3$/ })).toHaveProperty('ariaPressed', 'true')
+  })
+
+  // Punkty 57, 58 i 97: luz po obwodzie okna i granica wymianu.
+  it('okno dachowe dostaje luz po obwodzie', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: /\+ Okno dachowe/i }))
+
+    expect(screen.getByText(/luz 15 mm z każdej strony/i)).toBeDefined()
+    expect(screen.getByText(/Ten sam luz zostaje po obwodzie/i)).toBeDefined()
+  })
+
   // Punkt 111: „każda deska, element drewniany — dokładnie wymiarowana
   // z rysunkiem w każdej płaszczyźnie".
   it('każda część mebla ma rysunek warsztatowy z wymiarami', async () => {

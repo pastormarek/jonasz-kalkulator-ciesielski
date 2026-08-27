@@ -728,6 +728,40 @@ td small {
   font-weight: 600;
 }
 
+/* Rzut z góry: każdy rodzaj elementu ma własną kreskę, żeby dało się je
+   rozróżnić także na wydruku czarno-białym. */
+.rysunek .rzut-krokiew {
+  stroke: var(--akcent);
+  stroke-width: 2;
+}
+
+.rysunek .rzut-kalenica {
+  stroke: var(--tekst);
+  stroke-width: 3;
+}
+
+.rysunek .rzut-krozyna {
+  stroke: var(--tekst);
+  stroke-width: 2.5;
+}
+
+.rysunek .rzut-kulawka {
+  stroke: var(--akcent);
+  stroke-width: 1.4;
+  opacity: 0.8;
+}
+
+.rysunek .rzut-otwor {
+  fill: var(--tlo-wglebienie);
+  stroke: var(--ostrzezenie);
+  stroke-width: 2;
+}
+
+.rysunek .rzut-stopka {
+  font-size: 11px;
+  fill: var(--tekst-slaby);
+}
+
 /* ---------- rysunki warsztatowe części mebla ---------- */
 
 .rysunki-czesci {

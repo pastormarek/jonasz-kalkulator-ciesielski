@@ -17,6 +17,7 @@ import type {
   SpanMode,
 } from '../core/types'
 import { COVERING_INFO, SHAPE_LABELS, TRUSS_LABELS, stockLengthsFor, COMMON_SECTIONS, FIXING_INFO } from '../core/defaults'
+import { LUZ_OKNA, GRANICA_WYMIANU } from '../core/materials'
 import {
   Karta,
   PoleLiczbowe,
@@ -619,6 +620,12 @@ function SekcjaOtworow({
       podtytul="Komin i okno dachowe przerywają krokwie i wymagają wymianów."
       pelna
     >
+      <p className="podpowiedz" style={{ marginTop: 0, marginBottom: 12 }}>
+        Podaj wymiar samego okna albo komina — luz na osadzenie dokładamy sami,
+        po {mm(LUZ_OKNA)} mm z każdej strony. Wymian dokładamy tam, gdzie otwór
+        przerywa krokiew, a przy oknie także wtedy, gdy jest szersze niż{' '}
+        {mm(GRANICA_WYMIANU)} mm.
+      </p>
       {input.openings.length === 0 && (
         <p className="pusto">Brak otworów. Jeśli w dachu jest komin albo okno, dodaj je tutaj.</p>
       )}
@@ -647,14 +654,22 @@ function SekcjaOtworow({
               value={o.width}
               onChange={(width) => zmien(o.id, { width })}
               krok={10}
-              podpowiedz="Wzdłuż kalenicy."
+              podpowiedz={
+                o.kind === 'okno'
+                  ? `Wymiar samego okna. Otwór w konstrukcji wyjdzie ${mm(o.width + 2 * LUZ_OKNA)} mm — luz ${mm(LUZ_OKNA)} mm z każdej strony.`
+                  : 'Wzdłuż kalenicy.'
+              }
             />
             <PoleLiczbowe
               label="Wysokość"
               value={o.height}
               onChange={(height) => zmien(o.id, { height })}
               krok={10}
-              podpowiedz="Wzdłuż spadku połaci."
+              podpowiedz={
+                o.kind === 'okno'
+                  ? `Wzdłuż spadku. Ten sam luz zostaje po obwodzie, więc otwór ma ${mm(o.height + 2 * LUZ_OKNA)} mm.`
+                  : 'Wzdłuż spadku połaci.'
+              }
             />
             <PoleLiczbowe
               label="Odległość od szczytu"

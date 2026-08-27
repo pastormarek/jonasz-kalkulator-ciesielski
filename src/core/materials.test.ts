@@ -422,3 +422,42 @@ describe('ustalenia z czwartej tury', () => {
     expect(c.slope.run).toBeCloseTo(7990 / 2, 6)
   })
 })
+
+describe('okna dachowe i wymiany', () => {
+  const otwor = (over: Partial<import('./types').Opening> = {}) => ({
+    id: '1',
+    kind: 'okno' as const,
+    width: 780,
+    height: 1180,
+    offsetAlong: 4000,
+    slope: 'A' as const,
+    ...over,
+  })
+
+  // Punkt 57 z tury 2 i 97 z czwartej: luz 1–2 cm po CAŁYM obwodzie.
+  // Przykład cieśli: okno 78 × 118 cm → otwór 81 × 121 cm.
+  it('otwór jest większy od okna o luz z każdej strony', () => {
+    const c = calculate(base({ openings: [otwor({ width: 1200 })] }))
+    const wymian = c.timber.find((t) => t.name.includes('Wymian'))!
+    expect(wymian.note).toContain('1230')
+    expect(wymian.note).toContain('1210')
+  })
+
+  // Punkt 58: „granica wymianu — powyżej 100 cm".
+  it('wąskie okno mieszczące się między krokwiami nie wymaga wymianów', () => {
+    const c = calculate(
+      base({ rafterSpacingMax: 900, openings: [otwor({ width: 780, height: 800 })] }),
+    )
+    expect(c.timber.some((t) => t.name.includes('Wymian'))).toBe(false)
+  })
+
+  it('okno szersze niż metr dostaje wymiany, nawet gdy nie tnie krokwi', () => {
+    const c = calculate(base({ openings: [otwor({ width: 1100, height: 800 })] }))
+    expect(c.timber.some((t) => t.name.includes('Wymian'))).toBe(true)
+  })
+
+  it('komin obudowuje się wymianami zawsze', () => {
+    const c = calculate(base({ openings: [otwor({ kind: 'komin', width: 400, height: 400 })] }))
+    expect(c.timber.some((t) => t.name.includes('Wymian'))).toBe(true)
+  })
+})

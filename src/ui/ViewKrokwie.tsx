@@ -10,6 +10,7 @@ import type { Calculation } from '../core/materials'
 import { SHAPE_LABELS, TRUSS_LABELS } from '../core/defaults'
 import { Karta, Wynik, Komunikat, Wzor } from './controls'
 import { RysunekPrzekroju, RysunekZaciosu } from './diagrams'
+import { KartaRzutuZGory } from './rzutZGory'
 import { liczba, mm, stopnie, odmiana } from './format'
 import { useDlugosc } from './units'
 
@@ -89,6 +90,8 @@ export function ViewKrokwie({
       <Karta tytul="Przekrój więźby" podtytul="Rysunek odpowiada wpisanym wymiarom.">
         <RysunekPrzekroju input={input} slope={slope} collar={collar} splice={splice} />
       </Karta>
+
+      <KartaRzutuZGory wynik={wynik} />
 
       {splice.active && (
         <Karta
