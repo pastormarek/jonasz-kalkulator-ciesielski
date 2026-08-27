@@ -21,6 +21,7 @@ npm test         # 288 testów
 python tools/formularz-docx.py    # formularz konsultacyjny, tura 1
 python tools/formularz2-docx.py   # tura 2
 python tools/formularz4-docx.py   # tura 4
+python tools/formularz5-docx.py   # tura 5
 ```
 
 ## Architektura
@@ -166,7 +167,9 @@ formularz .docx, on wpisuje odpowiedzi, my wdrażamy poprawki i pytamy dalej.
 Numeracja punktów jest **ciągła między turami** (tura 1: 1–50, tura 2: 51–73),
 żeby odwołania się nie myliły.
 
-Numeracja: tura 1: 1–50, tura 2: 51–73, tura 4: 87–111.
+Numeracja punktów: tura 1: 1–50, tura 2: 51–73, tura 3: 74–86,
+tura 4: 87–111, tura 5: 112–127. Sekcje tury 5 mają cyfry rzymskie, bo
+litery skończyły się na czwartej.
 
 Pierwsza tura zmieniła dziewięć rzeczy w obliczeniach — zapis w
 `docs/odpowiedzi-jonasza.md`. Druga dała geometrię zakończeń krokwi
